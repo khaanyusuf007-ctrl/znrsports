@@ -1,0 +1,2623 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FF Tournament Platform</title>
+
+  <!-- Firebase Scripts (v9 CDN compatibility mode) -->
+  <script>
+    // ZNR white-screen diagnostics: show JavaScript/runtime failures visibly.
+    (function () {
+      function showZnrError(message) {
+        try {
+          var existing = document.getElementById('znr-runtime-error');
+          if (existing) {
+            var detail = existing.querySelector('[data-error-detail]');
+            if (detail && detail.textContent.indexOf(message) === -1) detail.textContent += '\n' + message;
+            return;
+          }
+          var render = function () {
+            if (!document.body) return;
+            var box = document.createElement('div');
+            box.id = 'znr-runtime-error';
+            box.style.cssText = 'position:fixed;inset:12px;z-index:2147483647;background:#111827;color:#fff;border:2px solid #ef4444;border-radius:12px;padding:18px;overflow:auto;font:14px/1.5 system-ui,sans-serif;box-shadow:0 10px 40px #000';
+            var title = document.createElement('h2');
+            title.textContent = 'ZNR SPORTS could not start';
+            title.style.cssText = 'margin:0 0 8px;color:#fca5a5;font-size:20px';
+            var help = document.createElement('p');
+            help.textContent = 'This diagnostic message can help identify the white-screen cause. Take a screenshot and send it for fixing.';
+            var detail = document.createElement('pre');
+            detail.setAttribute('data-error-detail','1');
+            detail.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;background:#030712;padding:10px;border-radius:8px;color:#fde68a';
+            detail.textContent = message;
+            var reload = document.createElement('button');
+            reload.textContent = 'Reload page';
+            reload.style.cssText = 'padding:10px 14px;border:0;border-radius:7px;background:#2563eb;color:#fff;font-weight:700';
+            reload.onclick = function () { location.reload(); };
+            box.appendChild(title); box.appendChild(help); box.appendChild(detail); box.appendChild(reload);
+            document.body.appendChild(box);
+          };
+          if (document.body) render(); else document.addEventListener('DOMContentLoaded', render, { once: true });
+        } catch (_) {}
+      }
+      window.addEventListener('error', function (event) {
+        var msg = event && event.message ? event.message : 'A script or resource failed to load.';
+        if (event && event.filename) msg += '\nFile: ' + event.filename;
+        if (event && event.lineno) msg += '\nLine: ' + event.lineno;
+        showZnrError(msg);
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event && event.reason;
+        showZnrError('Unhandled promise rejection: ' + (reason && reason.message ? reason.message : String(reason || 'Unknown error')));
+      });
+      window.addEventListener('DOMContentLoaded', function () {
+        if (!window.firebase) showZnrError('Firebase SDK did not load. Check internet access or the hosting provider blocking https://www.gstatic.com/firebasejs/');
+      }, { once: true });
+    })();
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #f59e0b;
+      --text: #f8fafc;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --info: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: var(--card);
+      padding: 12px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+    .badge {
+      background: var(--accent);
+      color: #000;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .status-badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: bold;
+      display: inline-block;
+      margin-left: 5px;
+    }
+    .status-Incomplete { background: #64748b; color: #fff; }
+    .status-Going { background: var(--accent); color: #000; }
+    .status-Complete { background: var(--success); color: #fff; }
+
+    /* Custom LuckPerms Player Tags */
+    .player-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+    }
+    .tag-golden { background: linear-gradient(135deg, #ffd700, #b8860b); color: #000; box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+    .tag-red { background: #ef4444; color: #fff; }
+    .tag-blue { background: #3b82f6; color: #fff; }
+    .tag-green { background: #22c55e; color: #000; }
+    .tag-white { background: #ffffff; color: #000; }
+
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    .card {
+      background: var(--card);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border: 1px solid #334155;
+      position: relative;
+    }
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-secondary { background: #475569; color: #fff; }
+    .btn-sm { padding: 5px 10px; font-size: 0.75rem; width: auto; margin-top: 0; }
+    
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0 10px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #fff;
+    }
+    nav {
+      background: var(--card);
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      border-top: 1px solid #334155;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .hidden { display: none !important; }
+    .qr-box {
+      text-align: center;
+      background: #fff;
+      color: #000;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .room-info {
+      background: #14532d;
+      border: 1px solid #22c55e;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-top: 5px;
+      display: none;
+    }
+    .pack-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .pack-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .creator-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 6px;
+      border: 1px solid #334155;
+    }
+
+    /* Support Card Styling */
+    .support-card {
+      text-align: center;
+      padding: 25px 15px;
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid #334155;
+      margin-top: 10px;
+    }
+    .insta-logo {
+      width: 65px;
+      height: 65px;
+      margin-bottom: 12px;
+      border-radius: 16px;
+    }
+    .insta-username {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #f43f5e;
+      margin-bottom: 8px;
+    }
+
+    /* Admin Nav Tabs */
+    .admin-nav {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 15px;
+      overflow-x: auto;
+    }
+    .admin-tab-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .admin-tab-btn.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+    }
+
+    /* Table Styling for Players Info */
+    .table-responsive { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      min-width: 650px;
+    }
+    th, td {
+      border: 1px solid #334155;
+      padding: 8px;
+      text-align: left;
+      font-size: 0.82rem;
+    }
+    th { background: #0f172a; color: var(--accent); }
+    .action-btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+    .clickable-admin-user {
+      cursor: pointer;
+      color: var(--accent);
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 3px;
+    }
+
+    .clickable-admin-user:hover { opacity: 0.85; }
+    .role-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .role-option { background:#0f172a; border:1px solid #334155; border-radius:7px; padding:9px; display:flex; align-items:center; gap:8px; }
+    .role-option input { width:auto; margin:0; }
+    .moderator-card { background:#0f172a; border:1px solid #334155; border-radius:7px; padding:10px; margin-top:8px; }
+    .access-user-selectable { cursor:pointer; }
+    .access-user-selectable:hover { border-color:var(--accent); }
+    .payment-thumb { width:100%; max-height:320px; object-fit:contain; background:#fff; border-radius:7px; margin-top:8px; }
+    .selected-plan-btn { background:var(--danger) !important; color:#fff !important; }
+    @media (max-width:520px) { .role-list { grid-template-columns:1fr; } }
+
+
+    /* POPUP MODAL STYLES FOR WINNER SELECTION */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+    .modal-box h3 { color: var(--accent); margin-bottom: 8px; }
+    .modal-box p { color: #94a3b8; font-size: 0.85rem; margin-bottom: 15px; }
+
+    .delete-match-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header id="app-header" class="hidden">
+    <div>
+      <span id="header-user" style="font-weight: bold;">User</span>
+      <span id="header-custom-tag"></span>
+      <span id="partner-tag" class="badge hidden">VIP Partner</span>
+    </div>
+    <div>
+      🪙 <span id="coin-balance">0</span> Coins
+      <button onclick="switchTab('mailbox')" style="background:none; border:none; cursor:pointer; font-size:1.1rem; margin-left:8px;">📫</button>
+    </div>
+  </header>
+
+  <!-- Login Screen -->
+  <div id="screen-login" class="main-content">
+    <h2>🎮 Login Platform</h2>
+    <div class="card">
+      <label>Username</label>
+      <input type="text" id="login-username" placeholder="Enter Username">
+
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Enter Password">
+      
+      <p id="login-error" class="error-msg">⚠️ Invalid credentials or password! Check details or create new account.</p>
+
+      <button class="btn" onclick="login()">Login</button>
+      <div style="display:flex;align-items:center;gap:8px;margin:16px 0;color:#94a3b8;">
+        <span style="height:1px;background:#334155;flex:1;"></span>
+        <span>OR</span>
+        <span style="height:1px;background:#334155;flex:1;"></span>
+      </div>
+
+      <label>Mobile Number</label>
+      <input type="tel" id="login-phone" placeholder="+91 9876543210" inputmode="tel">
+
+      <button class="btn btn-secondary" type="button" onclick="sendLoginOTP()">Send OTP</button>
+
+      <div id="login-otp-box" class="hidden" style="margin-top:10px;">
+        <label>OTP</label>
+        <input type="text" id="login-otp" placeholder="Enter 6-digit OTP" inputmode="numeric" maxlength="6">
+        <button class="btn btn-success" type="button" onclick="verifyLoginOTP()">Verify OTP & Login</button>
+      </div>
+
+      <div id="phone-recaptcha-container"></div>
+      <p id="phone-login-error" class="error-msg">⚠️ Phone login failed. Check the number and try again.</p>
+
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="showSignup()">Create New Account</button>
+    </div>
+  </div>
+
+  <!-- Register Screen -->
+  <div id="screen-register" class="main-content hidden">
+    <h2>📝 Create New Account</h2>
+    <div class="card">
+      <label>New Username</label>
+      <input type="text" id="reg-username" placeholder="Choose Username">
+
+      <label>In-Game Name (IGN)</label>
+      <input type="text" id="reg-ign" placeholder="In-Game Name">
+
+      <label>Free Fire UID</label>
+      <input type="text" id="reg-uid" placeholder="FF UID (Numeric)">
+
+      <label>Set Password</label>
+      <input type="password" id="reg-password" placeholder="Create Password">
+
+      <label>Mobile Number</label>
+      <input type="tel" id="reg-phone" placeholder="+91 9876543210" inputmode="tel">
+
+      <button class="btn btn-secondary" type="button" onclick="sendRegisterOTP()">Send OTP</button>
+
+      <div id="register-otp-box" class="hidden" style="margin-top:10px;">
+        <label>OTP</label>
+        <input type="text" id="reg-otp" placeholder="Enter 6-digit OTP" inputmode="numeric" maxlength="6">
+        <button class="btn btn-success" type="button" onclick="verifyRegisterOTP()">Verify Phone OTP</button>
+        <p id="reg-phone-status" style="font-size:0.8rem;color:#94a3b8;margin-top:6px;">Phone verification required.</p>
+      </div>
+
+      <label>Creator Referral (Optional)</label>
+      <select id="reg-creator-select">
+        <option value="None">None</option>
+      </select>
+
+      <p id="reg-error" class="error-msg">⚠️ Account already exists!</p>
+
+      <button class="btn btn-success" onclick="registerAccount()">Register & Sign In</button>
+      <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+    </div>
+  </div>
+
+  <!-- User Matches Tab -->
+  <div id="tab-tournaments" class="main-content hidden">
+    <h3>🏆 Live Tournaments</h3>
+    
+    <div id="partner-tools" class="hidden card" style="border:1px solid var(--accent); margin-top:10px;">
+      <h3>👑 Creator Tools</h3>
+      <button class="btn" onclick="giftCoinsPrompt()">🎁 Gift Coins (Live Stream)</button>
+
+      <div class="card" style="margin-top:10px; margin-bottom:0; border:1px solid #334155;">
+        <h3>🎮 Organize Custom</h3>
+        <input type="text" id="creator-t-name" placeholder="Match Name">
+        <input type="number" id="creator-t-fee" placeholder="Entry Fee (Coins)">
+        <input type="number" id="creator-t-prize" placeholder="Prize Pool (Coins)">
+        <input type="number" id="creator-t-limit" placeholder="Players Limit (e.g. 48)">
+        <button class="btn" onclick="creatorCreateMatch()">Publish Match</button>
+      </div>
+    </div>
+
+    <div id="tournaments-list" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Universal Mailbox Tab -->
+  <div id="tab-mailbox" class="main-content hidden">
+    <h3>📫 Player Mailbox</h3>
+    <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:10px;">System Rewards, Creator Gifts & Admin Messages</p>
+    <div id="mailbox-list"></div>
+  </div>
+
+  <!-- Buy Coins Tab -->
+  <div id="tab-buy-coins" class="main-content hidden">
+    <h3>🪙 Buy Platform Coins</h3>
+    <div class="card">
+      <p style="font-size:0.85rem; color:#94a3b8;">Select a coin package, scan QR to pay, and submit UTR.</p>
+      
+      <div class="qr-box">
+        <p style="font-size:0.85rem; font-weight:bold;">UPI ID: 7461894876@kotakbank </p>
+        <p style="font-size:0.75rem; color:#666; margin-top:3px;">[PhonePe / GooglePay / Paytm]</p>
+      </div>
+
+      <h4>Choose Coin Package:</h4>
+      <div class="pack-grid">
+        <div class="pack-card">
+          <h4>🪙 15 Coins</h4>
+          <p style="color:var(--accent);">₹20</p>
+          <button class="btn selected-plan-btn" onclick="selectPack(15, 20)">Selected Plan</button>
+        </div>
+        <div class="pack-card">
+          <h4>🪙 50 Coins</h4>
+          <p style="color:var(--accent);">₹60</p>
+          <button class="btn" onclick="selectPack(50, 60)">Select</button>
+        </div>
+        <div class="pack-card">
+          <h4>🪙 100 Coins</h4>
+          <p style="color:var(--accent);">₹110</p>
+          <button class="btn" onclick="selectPack(100, 110)">Select</button>
+        </div>
+        <div class="pack-card">
+          <h4>🪙 250 Coins</h4>
+          <p style="color:var(--accent);">₹250</p>
+          <button class="btn" onclick="selectPack(250, 250)">Select</button>
+        </div>
+      </div>
+
+      <div style="margin-top:15px;">
+        <label>Selected Package: <strong id="selected-pack-text">15 Coins (₹20)</strong></label>
+        <input type="text" id="payment-upi-input" placeholder="Enter your UPI ID">
+        <button class="btn" onclick="goToPaymentScreenshotStep()">Next → Submit Payment Screenshot</button>
+      </div>
+
+      <div id="payment-screenshot-step" class="card hidden" style="margin-top:12px; border:1px solid var(--info);">
+        <h4>📸 Submit Payment Screenshot</h4>
+        <p style="font-size:0.8rem; color:#94a3b8;">Apni payment ki clear screenshot upload karein.</p>
+        <input type="file" id="payment-screenshot" accept="image/*">
+        <button class="btn btn-success" onclick="submitPaymentRequest()">Submit Payment Request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coupon Tab -->
+  <div id="tab-coupons" class="main-content hidden">
+    <h3>🎟️ Redeem Coupon</h3>
+    <div class="card">
+      <input type="text" id="coupon-input" placeholder="Enter Coupon Code">
+      <button class="btn" onclick="redeemCoupon()">Redeem Code</button>
+    </div>
+  </div>
+
+  <!-- Withdraw Money Tab -->
+  <div id="tab-withdraw" class="main-content hidden">
+    <h3>💸 Withdraw Money</h3>
+    <div class="card">
+      <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:12px;">Apne won kiye gaye coins ko UPI ke jariye instant bank me withdraw karein.</p>
+      
+      <label>Your UPI ID (GPay / PhonePe / Paytm)</label>
+      <input type="text" id="withdraw-upi" placeholder="example@upi or 9876543210@paytm">
+
+      <label>Coins to Withdraw</label>
+      <input type="number" id="withdraw-coins" placeholder="Enter number of coins">
+
+      <button class="btn btn-success" onclick="processWithdrawal()">Next & Request Withdraw</button>
+    </div>
+  </div>
+
+  <!-- Profile Tab -->
+  <div id="tab-profile" class="main-content hidden">
+    <h3>👤 My Profile</h3>
+    <div class="card" id="profile-info"></div>
+    <button class="btn btn-danger" onclick="logout()" style="margin-bottom:15px;">🚪 Logout Account</button>
+    
+    <h4>Transaction & Match History</h4>
+    <div id="history-list" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Support Tab -->
+  <div id="tab-support" class="main-content hidden">
+    <h3>🎧 Customer Support</h3>
+    <div class="support-card">
+      <svg class="insta-logo" viewBox="0 0 448 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M224.1 141.1c-43.6 0-79 35.4-79 79s35.4 79 79 79 79-35.4 79-79-35.4-79-79-79zm0 130.2c-28.3 0-51.2-22.9-51.2-51.2s22.9-51.2 51.2-51.2 51.2 22.9 51.2 51.2-22.9 51.2-51.2 51.2zm136.3-132c0 10.1-8.2 18.3-18.3 18.3-10.1 0-18.3-8.2-18.3-18.3 0-10.1 8.2-18.3 18.3-18.3 10.1 0 18.3 8.2 18.3 18.3zm67.8 18.3c-1.5-31.9-8.8-60.2-32.2-83.6-23.4-23.4-51.7-30.7-83.6-32.2-32.9-1.9-131.6-1.9-164.5 0-31.9 1.5-60.2 8.8-83.6 32.2-23.4 23.4-30.7 51.7-32.2 83.6-1.9 32.9-1.9 131.6 0 164.5 1.5 31.9 8.8 60.2 32.2 83.6 23.4 23.4 51.7 30.7 83.6 32.2 32.9 1.9 131.6 1.9 164.5 0 31.9-1.5 60.2-8.8 83.6-32.2 23.4-23.4 30.7-51.7 32.2-83.6 1.9-32.9 1.9-131.6 0-164.5zm-48.4 201.2c-7 17.6-20.6 31.2-38.2 38.2-26.3 10.4-88.7 8-117.6 8s-91.4 2.3-117.6-8c-17.6-7-31.2-20.6-38.2-38.2-10.4-26.3-8-88.7-8-117.6s-2.3-91.4 8-117.6c7-17.6 20.6-31.2 38.2-38.2 26.3-10.4 88.7-8 117.6-8s91.4-2.3 117.6 8c17.6 7 31.2 20.6 38.2 38.2 10.4 26.3 8 88.7 8 117.6s2.3 91.4-8 117.6z" fill="url(#insta-gradient)"/>
+        <defs>
+          <linearGradient id="insta-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f09433"/>
+            <stop offset="25%" stop-color="#e6683c"/>
+            <stop offset="50%" stop-color="#dc2743"/>
+            <stop offset="75%" stop-color="#cc2366"/>
+            <stop offset="100%" stop-color="#bc1888"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      <div class="insta-username">@znrnvrdie</div>
+      <p style="color: #cbd5e1; font-size: 0.9rem; margin-top: 5px;">contact here for any problem</p>
+      
+      <a href="https://instagram.com/znrnvrdie" target="_blank" class="btn" style="display:inline-block; margin-top:15px; text-decoration:none; max-width:200px;">Open Instagram</a>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL SCREEN -->
+  <div id="screen-admin" class="main-content hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h2 style="color:var(--danger)">⚙️ Live Admin Dashboard</h2>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Logout Admin</button>
+    </div>
+
+    <div class="admin-nav">
+      <button class="admin-tab-btn active" onclick="switchAdminTab('admin-tab-matches', this)">🎮 Matches</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-players', this)">👥 Players Info</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-tags', this)">🏷️ Tags (LuckPerms)</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-creators', this)">🤝 Creators</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-payments', this)">💳 Payments & Withdraws</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('admin-tab-extra', this)">🛠️ Tools & Mail</button>
+      <button class="admin-tab-btn" data-admin-only="true" onclick="switchAdminTab('admin-tab-access', this)">🔐 Share Access</button>
+    </div>
+
+    <!-- 1. MATCHES -->
+    <div id="admin-tab-matches" class="admin-content-tab">
+      <div class="card">
+        <h3>Create Tournament</h3>
+        <input type="text" id="admin-t-name" placeholder="Match Name">
+        <input type="number" id="admin-t-fee" placeholder="Entry Fee (Coins)">
+        <input type="number" id="admin-t-prize" placeholder="Prize Pool (Coins)">
+        <input type="number" id="admin-t-limit" placeholder="Players Limit (e.g. 48)">
+        <button class="btn" onclick="adminCreateMatch()">Publish Match</button>
+      </div>
+
+      <div class="card">
+        <h3>Manage Matches & Room Info</h3>
+        <div id="admin-matches-control"></div>
+      </div>
+
+      <div class="card">
+        <h3>Send Room ID & Password</h3>
+        <select id="admin-select-match"></select>
+        <input type="text" id="admin-room-id" placeholder="Room ID">
+        <input type="text" id="admin-room-pass" placeholder="Room Password">
+        <button class="btn btn-success" onclick="adminSendRoomInfo()">Send Room Info</button>
+      </div>
+    </div>
+
+    <!-- 2. PLAYERS INFO -->
+    <div id="admin-tab-players" class="admin-content-tab hidden">
+      <div class="card">
+        <h3>👥 Registered Players Management</h3>
+        <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">Real-time Cloud Database View</p>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Username & Tag</th>
+                <th>FF IGN</th>
+                <th>FF UID</th>
+                <th>Coins</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-players-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TAGS MANAGEMENT -->
+    <div id="admin-tab-tags" class="admin-content-tab hidden">
+      <div class="card">
+        <h3>🏷️ LuckPerms Player Tags Manager</h3>
+        <label>Select Player:</label>
+        <select id="admin-tag-user-select"></select>
+
+        <label>Custom Tag Text (e.g. VIP, PRO, OWNER):</label>
+        <input type="text" id="admin-tag-text" placeholder="Enter custom tag text">
+
+        <label>Tag Color:</label>
+        <select id="admin-tag-color">
+          <option value="golden">✨ Golden</option>
+          <option value="red">🔴 Red</option>
+          <option value="blue">🔵 Blue</option>
+          <option value="green">🟢 Green</option>
+          <option value="white">⚪ White</option>
+        </select>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn btn-success" onclick="adminSetPlayerTag()">Apply Tag</button>
+          <button class="btn btn-danger" onclick="adminRemovePlayerTag()">Remove Tag</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>All Players & Active Tags</h3>
+        <div id="admin-tags-overview-list"></div>
+      </div>
+    </div>
+
+    <!-- 4. CREATORS -->
+    <div id="admin-tab-creators" class="admin-content-tab hidden">
+      <div class="card">
+        <h3>Add & Remove Creators / Partners</h3>
+        <input type="text" id="admin-new-creator" placeholder="Creator Username">
+        <button class="btn" onclick="adminAddCreator()">Add Partner</button>
+        <h4 style="margin-top:15px;">Current Active Partners:</h4>
+        <div id="admin-creators-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- 5. PAYMENTS & WITHDRAWS -->
+    <div id="admin-tab-payments" class="admin-content-tab hidden">
+      <div class="card">
+        <h3 style="color:var(--accent);">📥 Pending Deposit Requests (Buy Coins)</h3>
+        <div id="admin-pending-payments" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card" style="border:1px solid #22c55e;">
+        <h3 style="color:#22c55e;">📤 Pending Withdrawal Requests</h3>
+        <div id="admin-pending-withdrawals" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- 6. SHARE ACCESS -->
+    <div id="admin-tab-access" class="admin-content-tab hidden">
+      <div class="card">
+        <h3>🔐 Share Access</h3>
+        <p style="font-size:0.8rem; color:#94a3b8;">Registered players ko moderator access do aur roles manage karo.</p>
+        <h4 style="margin-top:15px; color:var(--accent);">🟢 Active Moderators</h4>
+        <div id="active-moderators-list"></div>
+        <h4 style="margin-top:18px; color:#94a3b8;">👥 Other Users</h4>
+        <div id="other-users-access-list"></div>
+      </div>
+    </div>
+
+        <!-- 6. TOOLS & EXTRA -->
+    <div id="admin-tab-extra" class="admin-content-tab hidden">
+      <div class="card">
+        <h3>Send Coins / Message to Player Mailbox</h3>
+        <input type="text" id="admin-target-user" placeholder="Player Username">
+        <input type="text" id="admin-mail-title" placeholder="Message Title">
+        <input type="number" id="admin-mail-coins" placeholder="Coins Amount (0 if only message)">
+        <button class="btn" onclick="adminSendMailbox()">Send Mail</button>
+      </div>
+
+      <div class="card">
+        <h3>Create Coupon Code</h3>
+        <input type="text" id="admin-c-code" placeholder="Coupon Code (e.g. FREE100)">
+        <input type="number" id="admin-c-coins" placeholder="Coins Reward">
+        <input type="number" id="admin-c-limit" placeholder="Redeem Limit">
+        <button class="btn" onclick="adminCreateCoupon()">Publish Coupon</button>
+      </div>
+
+      <div class="card">
+        <h3>🎟️ Active Coupons</h3>
+        <p style="font-size:0.8rem; color:#94a3b8;">Coupon usage, total limit, reward value aur delete control.</p>
+        <div id="admin-coupons-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PAYMENT REQUEST VIEW MODAL -->
+  <div id="paymentRequestModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:520px; text-align:left; max-height:90vh; overflow-y:auto;">
+      <h3>💳 Payment Request</h3>
+      <div id="payment-request-details"></div>
+      <button class="btn btn-secondary" onclick="closePaymentRequest()">Close</button>
+    </div>
+  </div>
+
+  <!-- SHARE ACCESS ROLE MODAL -->
+  <div id="accessRoleModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:520px; text-align:left; max-height:85vh; overflow-y:auto;">
+      <h3>🔐 Manage Access</h3>
+      <p id="access-role-user" style="margin-bottom:8px;"></p>
+      <div class="role-list">
+        <label class="role-option"><input type="checkbox" value="tags" class="access-role-check"> 🏷️ Tags</label>
+        <label class="role-option"><input type="checkbox" value="roomOrganize" class="access-role-check"> 🎮 Room Organize</label>
+        <label class="role-option"><input type="checkbox" value="coupons" class="access-role-check"> 🎟️ Coupons</label>
+        <label class="role-option"><input type="checkbox" value="paymentApproval" class="access-role-check"> 💳 Payment Approval</label>
+        <label class="role-option"><input type="checkbox" value="sendMail" class="access-role-check"> 📫 Send Mail</label>
+        <label class="role-option"><input type="checkbox" value="coins" class="access-role-check"> 🪙 Coins Management</label>
+        <label class="role-option"><input type="checkbox" value="withdrawApproval" class="access-role-check"> 💸 Withdraw Approval</label>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn btn-success" onclick="saveModeratorAccess()">Save Access</button>
+        <button class="btn btn-secondary" onclick="closeAccessRoleModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN USER DETAILS MODAL -->
+  <div id="adminUserModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:520px; text-align:left; max-height:85vh; overflow-y:auto;">
+      <h3>👤 User Details</h3>
+      <div id="admin-user-details"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-success" onclick="adminAddCoinsFromDetails()">➕ Add Coins</button>
+        <button class="btn" style="background:#eab308; color:#000;" onclick="adminMinusCoinsFromDetails()">➖ Deduct Coins</button>
+        <button class="btn btn-secondary" onclick="closeAdminUserModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POPUP MODAL FOR SELECTING WINNER -->
+  <div id="winnerModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>🏆 Select Winner</h3>
+      <p>Is tournament me BOOYAH kis player ne kiya?</p>
+
+      <select id="winnerSelect">
+        <option value="">-- Select Winner Username --</option>
+      </select>
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn btn-secondary" onclick="closeWinnerModal()">Cancel</button>
+        <button class="btn btn-success" onclick="confirmWinnerSelection()">Confirm Winner</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM RED POPUP MODAL FOR MAX PLAYERS -->
+  <div id="maxPlayersModal" class="modal-overlay">
+    <div class="modal-box" style="border-color: var(--danger);">
+      <h3 style="color: var(--danger);">🚫 Registration Closed</h3>
+      <p style="color: var(--danger); font-weight: bold; font-size: 0.95rem; margin-top: 10px;" id="maxPlayersMsg">
+        Max Players Reached U can register for another match
+      </p>
+      <button class="btn btn-danger" style="margin-top: 15px;" onclick="closeMaxPlayersModal()">OK</button>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav id="app-nav" class="hidden">
+    <button onclick="switchTab('tournaments')">🏆 Matches</button>
+    <button onclick="switchTab('buy-coins')">🪙 Buy Coins</button>
+    <button onclick="switchTab('coupons')">🎟️ Coupon</button>
+    <button onclick="switchTab('withdraw')">💸 Withdraw</button>
+    <button onclick="switchTab('profile')">👤 Profile</button>
+    <button onclick="switchTab('support')">🎧 Support</button>
+  </nav>
+
+  <script>
+    // FIREBASE INITIALIZATION
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLsMVKiWH-jT_g1CESKV0ozEUaDU_CfM8",
+      authDomain: "znr-6aff8.firebaseapp.com",
+      databaseURL: "https://znr-6aff8-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "znr-6aff8",
+      storageBucket: "znr-6aff8.firebasestorage.app",
+      messagingSenderId: "300435807650",
+      appId: "1:300435807650:web:787e13b4df217e35aaa6fb",
+      measurementId: "G-9QFGJW4S7C"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref("appData");
+    const auth = firebase.auth();
+
+    // Phone OTP state
+    let phoneConfirmationResult = null;
+    let registerPhoneVerified = false;
+    let verifiedRegisterPhone = '';
+    let phoneRecaptchaVerifier = null;
+
+    function normalizePhoneNumber(value) {
+      let phone = String(value || '').trim().replace(/[\s()-]/g, '');
+      if (/^0\d{10}$/.test(phone)) phone = '+91' + phone.substring(1);
+      if (/^\d{10}$/.test(phone)) phone = '+91' + phone;
+      return phone;
+    }
+
+    function isValidIndianPhone(phone) {
+      return /^\+91[6-9]\d{9}$/.test(phone);
+    }
+
+    function getPhoneRecaptcha() {
+      if (phoneRecaptchaVerifier) return phoneRecaptchaVerifier;
+      phoneRecaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+        'phone-recaptcha-container',
+        { size: 'invisible' },
+        () => {}
+      );
+      phoneRecaptchaVerifier.render().catch(() => {});
+      return phoneRecaptchaVerifier;
+    }
+
+    function resetPhoneRecaptcha() {
+      try {
+        if (phoneRecaptchaVerifier) {
+          const widgetId = phoneRecaptchaVerifier.getWidgetId();
+          if (widgetId !== null && widgetId !== undefined && window.grecaptcha) {
+            window.grecaptcha.reset(widgetId);
+          }
+        }
+      } catch (e) {}
+    }
+
+    function findUserByPhone(phone) {
+      const users = db.users || {};
+      for (const [username, user] of Object.entries(users)) {
+        if (normalizePhoneNumber(user && user.phone) === phone) {
+          return { username, user };
+        }
+      }
+      return null;
+    }
+
+
+    // Local DB Structure
+    let db = {
+      pendingPayments: [],
+      pendingWithdrawals: [],
+      creators: [],
+      coupons: { "FREE10": { coins: 10, limit: 50, claimedBy: [] } },
+      tournaments: [
+        { id: 101, title: "BR Custom Match #1", fee: 10, prize: 150, limit: 48, joinedPlayers: [], roomId: "", roomPass: "", status: "Incomplete" },
+        { id: 102, title: "CS Rush Match #2", fee: 20, prize: 300, limit: 8, joinedPlayers: [], roomId: "", roomPass: "", status: "Incomplete" }
+      ],
+      users: {}
+    };
+
+    let currentUser = localStorage.getItem('loggedInUser') || null;
+    let selectedCoins = 15;
+    let selectedAmount = 20;
+    let selectedMatchIdForWinner = null;
+
+    // REALTIME DATABASE SYNC
+    dbRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        db = data;
+        if (!db.users) db.users = {};
+        if (!db.tournaments) {
+          db.tournaments = [];
+        } else {
+          // Keep the real Firebase child key when converting tournaments to an array.
+          // This is important because a tournament's numeric "id" is not necessarily
+          // the same as its Firebase child key (for example 101 vs 0).
+          const rawTournaments = db.tournaments;
+          db.tournaments = Object.entries(rawTournaments).map(([firebaseKey, t]) => {
+            const tournament = t || {};
+            Object.defineProperty(tournament, '_firebaseKey', {
+              value: firebaseKey,
+              writable: true,
+              configurable: true,
+              enumerable: false
+            });
+            if (!Array.isArray(tournament.joinedPlayers)) {
+              tournament.joinedPlayers = tournament.joinedPlayers
+                ? Object.values(tournament.joinedPlayers)
+                : [];
+            }
+            return tournament;
+          });
+        }
+
+        // Preserve the actual Firebase child key for each pending request.
+        const normalizeRequests = (value) => {
+          if (!value) return [];
+          return Object.entries(value).map(([firebaseKey, item]) => {
+            const request = item || {};
+            Object.defineProperty(request, '_firebaseKey', {
+              value: firebaseKey, writable: true, configurable: true, enumerable: false
+            });
+            return request;
+          });
+        };
+        db.pendingPayments = normalizeRequests(db.pendingPayments);
+        db.pendingWithdrawals = normalizeRequests(db.pendingWithdrawals);
+        if (!db.creators) db.creators = [];
+        if (!db.coupons) db.coupons = {};
+        Object.keys(db.coupons).forEach(code => {
+          const coupon = db.coupons[code];
+          if (coupon && coupon.claimedBy && !Array.isArray(coupon.claimedBy)) {
+            coupon.claimedBy = Object.values(coupon.claimedBy);
+          }
+        });
+      } else {
+        saveDB();
+      }
+      populateLoginCreatorsDropdown();
+      
+      // AUTO LOGIN CHECK ON REFRESH
+      if (currentUser) {
+        if (currentUser === "ADMIN_ZNR") {
+          document.getElementById('screen-login').classList.add('hidden');
+          document.getElementById('screen-admin').classList.remove('hidden');
+          renderAdminPanel();
+        } else if (db.users[currentUser]) {
+          if (hasAnyModeratorAccess(currentUser)) {
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-admin').classList.remove('hidden');
+            renderAdminPanel();
+          } else {
+            restoreUserSession(currentUser);
+          }
+        }
+      }
+
+      if (!document.getElementById('screen-admin').classList.contains('hidden')) {
+        renderAdminPanel();
+      }
+    });
+
+    function saveDB() {
+      dbRef.set(db);
+    }
+
+    function getTagHTML(tagObj) {
+      if (!tagObj || !tagObj.text) return '';
+      const colorClass = `tag-${tagObj.color || 'golden'}`;
+      return `<span class="player-tag ${colorClass}">${tagObj.text}</span>`;
+    }
+
+    function populateLoginCreatorsDropdown() {
+      const loginDropdown = document.getElementById('login-creator-select');
+      const regDropdown = document.getElementById('reg-creator-select');
+
+      if (loginDropdown) {
+        loginDropdown.innerHTML = '<option value="">-- Select Creator / Normal User --</option>' + 
+          db.creators.map(c => `<option value="${c}">${c} (Creator)</option>`).join('');
+      }
+
+      if (regDropdown) {
+        regDropdown.innerHTML = '<option value="None">None</option>' + 
+          db.creators.map(c => `<option value="${c}">${c}</option>`).join('');
+      }
+    }
+
+    function onLoginCreatorSelect() { return; }
+
+    function showSignup() {
+      populateLoginCreatorsDropdown();
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('screen-register').classList.remove('hidden');
+    }
+
+    function showLogin() {
+      populateLoginCreatorsDropdown();
+      document.getElementById('screen-register').classList.add('hidden');
+      document.getElementById('screen-login').classList.remove('hidden');
+      const otpBox = document.getElementById('login-otp-box');
+      if (otpBox) otpBox.classList.add('hidden');
+      const phoneErr = document.getElementById('phone-login-error');
+      if (phoneErr) phoneErr.style.display = 'none';
+    }
+
+    async function registerAccount() {
+      const user = document.getElementById('reg-username').value.trim();
+      const ign = document.getElementById('reg-ign').value.trim();
+      const uid = document.getElementById('reg-uid').value.trim();
+      const password = document.getElementById('reg-password').value.trim();
+      const phone = normalizePhoneNumber(document.getElementById('reg-phone').value);
+      const selectedCreator = document.getElementById('reg-creator-select').value;
+      const err = document.getElementById('reg-error');
+
+      if (!user || !ign || !uid || !password || !phone) return alert("Please fill all fields!");
+      if (!isValidIndianPhone(phone)) return alert("Enter a valid Indian mobile number, e.g. +91 9876543210!");
+      if (!registerPhoneVerified || verifiedRegisterPhone !== phone) {
+        return alert("Please verify your mobile number with OTP first!");
+      }
+
+      if (db.users[user]) {
+        err.style.display = 'block';
+        err.textContent = "⚠️ Account already exists!";
+        return;
+      }
+
+      const phoneOwner = findUserByPhone(phone);
+      if (phoneOwner) {
+        err.style.display = 'block';
+        err.textContent = "⚠️ This mobile number is already linked to an account!";
+        return;
+      }
+
+      err.style.display = 'none';
+
+      db.users[user] = {
+        ign: ign,
+        uid: uid,
+        password: password,
+        phone: phone,
+        coins: 0,
+        isPartner: db.creators.includes(user),
+        isBanned: false,
+        tag: null,
+        mailbox: [],
+        history: [`Account created - 0 Initial Coins`]
+      };
+
+      if (selectedCreator !== "None") {
+        if (!db.users[selectedCreator]) {
+          db.users[selectedCreator] = {
+            ign: selectedCreator, uid: "00000000", password: "123", coins: 0,
+            isPartner: true, isBanned: false, tag: null, mailbox: [], history: []
+          };
+        }
+        if (!db.users[selectedCreator].mailbox) db.users[selectedCreator].mailbox = [];
+        db.users[selectedCreator].mailbox.push({
+          id: Date.now(),
+          title: `🎁 Referral Reward from ${user}`,
+          coins: 10,
+          claimed: false
+        });
+      }
+
+      try {
+        await dbRef.set(db);
+        await auth.signOut();
+        alert("Account Created Successfully! Logging in...");
+        document.getElementById('login-username').value = user;
+        document.getElementById('login-password').value = password;
+        registerPhoneVerified = false;
+        verifiedRegisterPhone = '';
+        showLogin();
+        login();
+      } catch (error) {
+        console.error("Account creation error:", error);
+        alert("❌ Account creation failed. Please check Firebase Database permissions.");
+      }
+    }
+
+    async function sendRegisterOTP() {
+      const phone = normalizePhoneNumber(document.getElementById('reg-phone').value);
+
+      if (!isValidIndianPhone(phone)) {
+        return alert("Enter a valid Indian mobile number, e.g. +91 9876543210!");
+      }
+      if (findUserByPhone(phone)) {
+        return alert("This mobile number is already linked to an account!");
+      }
+
+      try {
+        resetPhoneRecaptcha();
+        const appVerifier = getPhoneRecaptcha();
+        phoneConfirmationResult = await auth.signInWithPhoneNumber(phone, appVerifier);
+        document.getElementById('register-otp-box').classList.remove('hidden');
+        document.getElementById('reg-phone-status').textContent = "OTP sent. Enter the 6-digit OTP.";
+        document.getElementById('reg-phone-status').style.color = "var(--accent)";
+      } catch (error) {
+        console.error("Register OTP error:", error);
+        resetPhoneRecaptcha();
+        alert("❌ OTP could not be sent. " + (error.message || "Please try again."));
+      }
+    }
+
+    async function verifyRegisterOTP() {
+      const otp = document.getElementById('reg-otp').value.trim();
+      if (!phoneConfirmationResult) return alert("Please send OTP first!");
+      if (!/^\d{6}$/.test(otp)) return alert("Enter the 6-digit OTP!");
+
+      try {
+        const result = await phoneConfirmationResult.confirm(otp);
+        const phone = normalizePhoneNumber(document.getElementById('reg-phone').value);
+
+        if (result.user && normalizePhoneNumber(result.user.phoneNumber) === phone) {
+          registerPhoneVerified = true;
+          verifiedRegisterPhone = phone;
+          document.getElementById('reg-phone-status').textContent = "✅ Mobile number verified.";
+          document.getElementById('reg-phone-status').style.color = "var(--success)";
+          alert("Phone number verified successfully!");
+        }
+      } catch (error) {
+        console.error("Register OTP verification error:", error);
+        alert("❌ Invalid OTP or verification failed.");
+      }
+    }
+
+
+    async function sendLoginOTP() {
+      const phone = normalizePhoneNumber(document.getElementById('login-phone').value);
+      const errorBox = document.getElementById('phone-login-error');
+
+      errorBox.style.display = 'none';
+
+      if (!isValidIndianPhone(phone)) {
+        return alert("Enter a valid Indian mobile number, e.g. +91 9876543210!");
+      }
+
+      const owner = findUserByPhone(phone);
+      if (!owner) {
+        return alert("No account is linked to this mobile number. Please use Username Login or create an account first.");
+      }
+
+      if (owner.user.isBanned) {
+        return alert("❌ Aapka account Ban kar diya gaya hai! Admin se contact karein.");
+      }
+
+      try {
+        resetPhoneRecaptcha();
+        const appVerifier = getPhoneRecaptcha();
+        phoneConfirmationResult = await auth.signInWithPhoneNumber(phone, appVerifier);
+        document.getElementById('login-otp-box').classList.remove('hidden');
+        alert("OTP sent to your mobile number!");
+      } catch (error) {
+        console.error("Login OTP error:", error);
+        resetPhoneRecaptcha();
+        errorBox.textContent = "⚠️ OTP could not be sent. " + (error.message || "Please try again.");
+        errorBox.style.display = 'block';
+      }
+    }
+
+    async function verifyLoginOTP() {
+      const otp = document.getElementById('login-otp').value.trim();
+      const phone = normalizePhoneNumber(document.getElementById('login-phone').value);
+      const errorBox = document.getElementById('phone-login-error');
+
+      errorBox.style.display = 'none';
+
+      if (!phoneConfirmationResult) return alert("Please send OTP first!");
+      if (!/^\d{6}$/.test(otp)) return alert("Enter the 6-digit OTP!");
+
+      try {
+        const result = await phoneConfirmationResult.confirm(otp);
+        const owner = findUserByPhone(phone);
+
+        if (!owner || !result.user) {
+          await auth.signOut();
+          return alert("OTP verified, but no linked account was found.");
+        }
+
+        if (owner.user.isBanned) {
+          await auth.signOut();
+          return alert("❌ Aapka account Ban kar diya gaya hai! Admin se contact karein.");
+        }
+
+        currentUser = owner.username;
+        localStorage.setItem('loggedInUser', currentUser);
+        document.getElementById('login-otp').value = '';
+
+        if (hasAnyModeratorAccess(currentUser)) {
+          document.getElementById('screen-login').classList.add('hidden');
+          document.getElementById('screen-admin').classList.remove('hidden');
+          renderAdminPanel();
+        } else {
+          restoreUserSession(currentUser);
+        }
+      } catch (error) {
+        console.error("Login OTP verification error:", error);
+        errorBox.textContent = "⚠️ Invalid OTP. Please try again.";
+        errorBox.style.display = 'block';
+      }
+    }
+
+    function login() {
+      const user = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      const err = document.getElementById('login-error');
+
+      if (!user || !password) return alert("Enter Username and Password!");
+
+      // Admin Login Access: Username "ZNR" & Password "3301"
+      if (user.toUpperCase() === "ZNR" && password === "3301") {
+        currentUser = "ADMIN_ZNR";
+        localStorage.setItem('loggedInUser', currentUser);
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-admin').classList.remove('hidden');
+        renderAdminPanel();
+        return;
+      }
+
+      const targetUser = db.users[user];
+
+      if (!targetUser || targetUser.password !== password) {
+        err.style.display = 'block';
+        return;
+      }
+
+      if (targetUser.isBanned) {
+        return alert("❌ Aapka account Ban kar diya gaya hai! Admin se contact karein.");
+      }
+
+      err.style.display = 'none';
+      currentUser = user;
+      localStorage.setItem('loggedInUser', currentUser);
+
+      if (hasAnyModeratorAccess(user)) {
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-admin').classList.remove('hidden');
+        renderAdminPanel();
+      } else {
+        restoreUserSession(currentUser);
+      }
+    }
+
+    function restoreUserSession(user) {
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('app-header').classList.remove('hidden');
+      document.getElementById('app-nav').classList.remove('hidden');
+
+      document.getElementById('header-user').innerText = db.users[user].ign;
+      document.getElementById('header-custom-tag').innerHTML = getTagHTML(db.users[user].tag);
+
+      if (db.users[user].isPartner) {
+        document.getElementById('partner-tag').classList.remove('hidden');
+        document.getElementById('partner-tools').classList.remove('hidden');
+      } else {
+        document.getElementById('partner-tag').classList.add('hidden');
+        document.getElementById('partner-tools').classList.add('hidden');
+      }
+
+      switchTab('tournaments');
+      updateUI();
+    }
+
+    function switchTab(tab) {
+      const tabs = ['tournaments', 'buy-coins', 'coupons', 'withdraw', 'profile', 'support', 'mailbox'];
+      tabs.forEach(t => document.getElementById(`tab-${t}`).classList.add('hidden'));
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      if (tab === 'mailbox') renderMailbox();
+      if (tab === 'profile') renderProfile();
+    }
+
+    function switchAdminTab(tabId, btnElement) {
+      document.querySelectorAll('.admin-content-tab').forEach(t => t.classList.add('hidden'));
+      document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.remove('hidden');
+      if (btnElement) btnElement.classList.add('active');
+    }
+
+    function updateUI() {
+      let userData = db.users[currentUser] || { coins: 0 };
+      document.getElementById('coin-balance').innerText = userData.coins || 0;
+      document.getElementById('header-custom-tag').innerHTML = getTagHTML(userData.tag);
+      renderTournaments();
+    }
+
+    function renderTournaments() {
+      const container = document.getElementById('tournaments-list');
+      const activeTournaments = db.tournaments.filter(t => t.status !== 'Complete');
+
+      if (activeTournaments.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.9rem;">Koi Active Tournament nahi hai abhi.</p>';
+        return;
+      }
+
+      container.innerHTML = activeTournaments.map(t => {
+        const joined = t.joinedPlayers || [];
+        const isJoined = joined.includes(currentUser);
+        const playerSlot = isJoined ? joined.indexOf(currentUser) + 1 : null;
+        const statusClass = `status-${t.status.split(' ')[0]}`;
+        const maxLimit = t.limit || 48;
+
+        return `
+          <div class="card">
+            <h4>
+              ${t.title} 
+              <span class="status-badge ${statusClass}">${t.status}</span>
+            </h4>
+            <p style="color:#94a3b8; font-size:0.85rem; margin:5px 0;">
+              Entry: 🪙 ${t.fee} Coins | Prize: 🪙 ${t.prize} Coins
+            </p>
+            <p style="color:var(--accent); font-size:0.85rem; font-weight:bold;">
+              👥 Slots Filled: ${joined.length} / ${maxLimit}
+            </p>
+            ${isJoined ? `
+              <button class="btn btn-success" disabled>Joined (Slot #${playerSlot})</button>
+              ${(t.roomId && t.roomPass) ? `
+                <div class="room-info">
+                  <p>🔑 <strong>Room ID:</strong> ${t.roomId}</p>
+                  <p>🔒 <strong>Password:</strong> ${t.roomPass}</p>
+                  <p style="margin-top:4px;">🎯 <strong>Your Slot:</strong> Slot #${playerSlot}</p>
+                </div>
+              ` : `<p style="font-size:0.8rem; color:#f59e0b; margin-top:5px;">⏳ Room details match shuru hone se pehle aayegi.</p>`}
+            ` : `
+              <button class="btn" onclick="joinMatch(${t.id})">
+                Join Now (🪙 ${t.fee} Coins)
+              </button>
+            `}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function joinMatch(matchId) {
+      const userData = db.users[currentUser];
+      const tournaments = Array.isArray(db.tournaments) ? db.tournaments : Object.values(db.tournaments || {});
+      const match = tournaments.find(t =>
+        String(t.id) === String(matchId) || String(t._firebaseKey) === String(matchId)
+      );
+
+      if (!userData) return alert("Session expired. Please login again.");
+      if (!match) return alert("Match not found. Please refresh the page.");
+      if (!Array.isArray(match.joinedPlayers)) {
+        match.joinedPlayers = match.joinedPlayers ? Object.values(match.joinedPlayers) : [];
+      }
+
+      // Prevent joining the same match twice.
+      if (match.joinedPlayers.includes(currentUser)) {
+        return alert("Aap already is match me joined hain!");
+      }
+
+      const maxLimit = Number(match.limit) || 48;
+      if (match.joinedPlayers.length >= maxLimit) {
+        document.getElementById('maxPlayersModal').style.display = 'flex';
+        return;
+      }
+
+      const fee = Number(match.fee) || 0;
+      const currentCoins = Number(userData.coins) || 0;
+      if (currentCoins < fee) {
+        return alert("Coins kam hain! Recharge section se coins buy karein.");
+      }
+
+      const joinedPlayers = [...match.joinedPlayers, currentUser];
+      const assignedSlot = joinedPlayers.length;
+      const newCoins = currentCoins - fee;
+      const history = Array.isArray(userData.history) ? [...userData.history] : [];
+      history.push(`${new Date().toLocaleTimeString()} - Joined Match: ${match.title} (Slot #${assignedSlot}, -${fee} Coins)`);
+
+      // Update only the two affected records instead of replacing the entire appData.
+      // This prevents another user's/admin's recent database update from overwriting
+      // this join action.
+      const updates = {};
+      updates[`users/${currentUser}/coins`] = newCoins;
+      updates[`users/${currentUser}/history`] = history;
+
+      // IMPORTANT: Firebase's tournament child key can be 0/1/etc. even when
+      // the tournament's own id is 101/102/etc. Use the actual Firebase key,
+      // otherwise coins can deduct while the join is written to the wrong path.
+      const tournamentKey = match._firebaseKey !== undefined
+        ? match._firebaseKey
+        : String(match.id);
+      updates[`tournaments/${tournamentKey}/joinedPlayers`] = joinedPlayers;
+
+      try {
+        await dbRef.update(updates);
+
+        // Keep the current UI responsive immediately; Firebase listener will also sync it.
+        userData.coins = newCoins;
+        userData.history = history;
+        match.joinedPlayers = joinedPlayers;
+        updateUI();
+        alert(`🎉 Successfully Joined! Aapka Slot Number: #${assignedSlot}`);
+      } catch (error) {
+        console.error("JOIN MATCH ERROR:", error);
+        alert("❌ Join failed. Firebase Database write permission/rules check karein.");
+      }
+    }
+
+    function closeMaxPlayersModal() {
+      document.getElementById('maxPlayersModal').style.display = 'none';
+    }
+
+    function selectPack(coins, amount) {
+      selectedCoins = coins;
+      selectedAmount = amount;
+      document.getElementById('selected-pack-text').innerText = `${coins} Coins (₹${amount})`;
+      document.querySelectorAll('#tab-buy-coins .pack-card .btn').forEach(btn => {
+        btn.classList.remove('selected-plan-btn');
+        btn.innerText = 'Select';
+      });
+      const buttons = document.querySelectorAll('#tab-buy-coins .pack-card .btn');
+      buttons.forEach(btn => {
+        if (btn.getAttribute('onclick') === `selectPack(${coins}, ${amount})`) {
+          btn.classList.add('selected-plan-btn');
+          btn.innerText = 'Selected Plan';
+        }
+      });
+    }
+
+    function goToPaymentScreenshotStep() {
+      const upi = document.getElementById('payment-upi-input').value.trim();
+      if (!upi || upi.length < 3) return alert("Please enter your UPI ID!");
+      document.getElementById('payment-screenshot-step').classList.remove('hidden');
+      document.getElementById('payment-screenshot-step').scrollIntoView({behavior:'smooth', block:'center'});
+    }
+
+    async function submitPaymentRequest() {
+      const upi = document.getElementById('payment-upi-input').value.trim();
+      const fileInput = document.getElementById('payment-screenshot');
+      const file = fileInput ? fileInput.files[0] : null;
+
+      if (!currentUser || !db.users || !db.users[currentUser]) return alert("Please login again before submitting payment!");
+      if (!selectedCoins || !selectedAmount) return alert("Please select a coin plan first!");
+      if (!upi || upi.length < 3) return alert("Please enter your UPI ID!");
+      if (!file) return alert("Please upload payment screenshot!");
+      if (!file.type.startsWith('image/')) return alert("Only image screenshots are allowed!");
+      if (file.size > 10 * 1024 * 1024) return alert("Screenshot must be under 10MB!");
+
+      try {
+        const requestId = Date.now();
+
+        // Compress the screenshot in the browser. This removes the dependency
+        // on Firebase Storage permissions for creating the payment request.
+        const screenshotData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+              const maxSide = 1200;
+              const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.max(1, Math.round(img.width * scale));
+              canvas.height = Math.max(1, Math.round(img.height * scale));
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.70));
+            };
+            img.onerror = () => reject(new Error('Screenshot could not be read'));
+            img.src = reader.result;
+          };
+          reader.onerror = () => reject(new Error('Screenshot could not be read'));
+          reader.readAsDataURL(file);
+        });
+
+        const request = {
+          id: requestId,
+          user: currentUser,
+          upi: upi,
+          screenshotUrl: screenshotData,
+          coins: Number(selectedCoins),
+          amount: Number(selectedAmount),
+          date: new Date().toLocaleString(),
+          status: "Pending"
+        };
+
+        // IMPORTANT: write directly to Realtime Database.
+        await dbRef.child('pendingPayments').child(String(requestId)).set(request);
+
+        const mailboxItem = {
+          id: requestId + 1,
+          title: "💳 Payment Request Submitted",
+          message: `Your payment request for ${selectedCoins} Coins has been submitted. Coins will be added after Admin approval.`,
+          coins: 0,
+          claimed: false
+        };
+        await dbRef.child('users').child(currentUser).child('mailbox').push(mailboxItem);
+
+        if (!db.pendingPayments) db.pendingPayments = [];
+        else if (!Array.isArray(db.pendingPayments)) db.pendingPayments = Object.values(db.pendingPayments);
+        db.pendingPayments.push(request);
+        if (!db.users[currentUser].mailbox) db.users[currentUser].mailbox = [];
+        db.users[currentUser].mailbox.unshift(mailboxItem);
+
+        document.getElementById('payment-upi-input').value = '';
+        document.getElementById('payment-screenshot').value = '';
+        document.getElementById('payment-screenshot-step').classList.add('hidden');
+
+        alert(`✅ Payment Request Submitted!\n\n${selectedCoins} Coins will be added after Admin approval.`);
+        updateUI();
+      } catch (error) {
+        console.error('PAYMENT REQUEST ERROR:', error);
+        alert('YOUR REQUEST WILL BE SENT TO THE ADMINS AND MODS. YOUR COINS WILL BE ADDED SOON AFTER ADMINS OR MODS WILL APPROVE. THANKS FOR YOUR SUPPORT.!');
+      }
+    }
+
+    // PROCESS WITHDRAWAL AND SEND TO ADMIN DB
+    async function processWithdrawal() {
+      const upi = document.getElementById('withdraw-upi').value.trim();
+      const coinsToWithdraw = parseInt(document.getElementById('withdraw-coins').value);
+      const userData = db.users[currentUser];
+
+      if (!userData) return alert("Session expired. Please login again.");
+      if (!upi || upi.length < 3) return alert("Please enter a valid UPI ID!");
+      if (!coinsToWithdraw || coinsToWithdraw <= 0) return alert("Please enter valid coins amount!");
+
+      const currentCoins = Number(userData.coins) || 0;
+      if (currentCoins < coinsToWithdraw) {
+        return alert("YOU HAVE NOT ENOUGH COINS TO WITHDRAW!");
+      }
+
+      const requestId = Date.now();
+      const request = {
+        id: requestId,
+        user: currentUser,
+        upi: upi,
+        coins: coinsToWithdraw,
+        date: new Date().toLocaleTimeString(),
+        status: "Pending"
+      };
+
+      const history = Array.isArray(userData.history) ? [...userData.history] : [];
+      history.push(`${new Date().toLocaleTimeString()} - Withdrawal Request: ${coinsToWithdraw} Coins (UPI: ${upi})`);
+
+      const updates = {};
+      updates[`users/${currentUser}/coins`] = currentCoins - coinsToWithdraw;
+      updates[`users/${currentUser}/history`] = history;
+      updates[`pendingWithdrawals/${requestId}`] = request;
+
+      try {
+        await dbRef.update(updates);
+
+        userData.coins = currentCoins - coinsToWithdraw;
+        userData.history = history;
+        if (!Array.isArray(db.pendingWithdrawals)) db.pendingWithdrawals = Object.values(db.pendingWithdrawals || {});
+        db.pendingWithdrawals.push(request);
+
+        updateUI();
+        alert("Your Money Will Be Sent To Ur Details As Soon As Possible");
+
+        document.getElementById('withdraw-upi').value = '';
+        document.getElementById('withdraw-coins').value = '';
+      } catch (error) {
+        console.error("WITHDRAWAL ERROR:", error);
+        alert("❌ Withdrawal request failed. Firebase Database write permission/rules check karein.");
+      }
+    }
+
+    async function redeemCoupon() {
+      const code = document.getElementById('coupon-input').value.trim().toUpperCase();
+      const userData = db.users[currentUser];
+      const coupon = db.coupons && db.coupons[code];
+
+      if (!userData) return alert("Session expired. Please login again.");
+      if (!coupon) return alert("Galat ya Expired Coupon Code!");
+
+      let claimedBy = Array.isArray(coupon.claimedBy)
+        ? [...coupon.claimedBy]
+        : (coupon.claimedBy ? Object.values(coupon.claimedBy) : []);
+
+      if (claimedBy.includes(currentUser)) {
+        return alert("Aap is coupon ko pehle hi claim kar chuke hain!");
+      }
+
+      const limit = Number(coupon.limit);
+      if (!Number.isFinite(limit) || limit <= 0) {
+        return alert("Coupon ki Limit Khatam ho chuki hai!");
+      }
+
+      const reward = Number(coupon.coins) || 0;
+      const newLimit = limit - 1;
+      claimedBy.push(currentUser);
+
+      const currentCoins = Number(userData.coins) || 0;
+      const newCoins = currentCoins + reward;
+      const history = Array.isArray(userData.history) ? [...userData.history] : [];
+      history.push(`${new Date().toLocaleTimeString()} - Redeemed Coupon ${code} (+${reward} Coins)`);
+
+      const updates = {};
+      updates[`coupons/${code}/limit`] = newLimit;
+      updates[`coupons/${code}/claimedBy`] = claimedBy;
+      updates[`users/${currentUser}/coins`] = newCoins;
+      updates[`users/${currentUser}/history`] = history;
+
+      try {
+        await dbRef.update(updates);
+
+        coupon.limit = newLimit;
+        coupon.claimedBy = claimedBy;
+        userData.coins = newCoins;
+        userData.history = history;
+
+        document.getElementById('coupon-input').value = '';
+        updateUI();
+        alert(`🎉 Coupon Claimed! +${reward} Coins Added. (Remaining Limit: ${newLimit})`);
+      } catch (error) {
+        console.error("COUPON REDEEM ERROR:", error);
+        alert("❌ Coupon redeem failed. Firebase Database write permission/rules check karein.");
+      }
+    }
+
+    function renderMailbox() {
+      let userData = db.users[currentUser];
+      const container = document.getElementById('mailbox-list');
+
+      if (!userData || !userData.mailbox || userData.mailbox.length === 0) {
+        container.innerHTML = "<p style='color:#94a3b8;'>Mailbox Khali Hai</p>";
+        return;
+      }
+
+      container.innerHTML = userData.mailbox.map(m => `
+        <div class="card">
+          <h4>${m.title}</h4>
+          ${m.message ? `<p style="color:#cbd5e1; font-size:0.85rem; margin:5px 0;">${m.message}</p>` : ''}
+          ${m.coins > 0 ? `<p style="color:#f59e0b; margin: 5px 0;">Reward: 🪙 ${m.coins} Coins</p>` : ''}
+          ${m.claimed ? '<button class="btn" disabled style="background:#475569; color:#aaa;">Read / Claimed</button>' 
+            : `<button class="btn" onclick="claimMail(${m.id}, ${m.coins || 0})">${m.coins > 0 ? 'Claim Reward' : 'Mark Read'}</button>`}
+        </div>
+      `).join('');
+    }
+
+    function claimMail(id, coins) {
+      let userData = db.users[currentUser];
+      const mail = userData.mailbox.find(m => m.id === id);
+
+      if (mail && !mail.claimed) {
+        mail.claimed = true;
+        if (coins > 0) {
+          userData.coins = (userData.coins || 0) + coins;
+          if (!userData.history) userData.history = [];
+          userData.history.push(`${new Date().toLocaleTimeString()} - Claimed Mailbox Reward (+${coins} Coins)`);
+        }
+        saveDB();
+        updateUI();
+        renderMailbox();
+        if (coins > 0) alert(`🎉 ${coins} Coins Wallet me add ho gaye!`);
+      }
+    }
+
+    function giftCoinsPrompt() {
+      const target = prompt("User ka Username daalein:");
+      const amount = parseInt(prompt("Coins Amount:"));
+      let sender = db.users[currentUser];
+
+      if (target && amount && sender.coins >= amount && db.users[target]) {
+        sender.coins -= amount;
+        db.users[target].coins = (db.users[target].coins || 0) + amount;
+        if (!sender.history) sender.history = [];
+        sender.history.push(`${new Date().toLocaleTimeString()} - Gifted ${amount} Coins to ${target}`);
+        
+        if (!db.users[target].mailbox) db.users[target].mailbox = [];
+        db.users[target].mailbox.push({
+          id: Date.now(),
+          title: `🎁 Gift from Streamer ${currentUser}`,
+          coins: amount,
+          claimed: false
+        });
+        saveDB();
+        updateUI();
+        alert("Coins Gifted Successfully!");
+      } else {
+        alert("Gift Failed! Username verify karein ya Balance kam hai.");
+      }
+    }
+
+    // MODERATOR ACCESS CONTROL
+    const MODERATOR_ROLES = {
+      tags: "Tags",
+      roomOrganize: "Room Organize",
+      coupons: "Coupons",
+      paymentApproval: "Payment Approval",
+      sendMail: "Send Mail",
+      coins: "Coins Management",
+      withdrawApproval: "Withdraw Approval"
+    };
+
+    function getModeratorAccess(username) {
+      if (!db.users[username]) return {};
+      return db.users[username].moderatorAccess || {};
+    }
+
+    function hasModeratorAccess(role, username = currentUser) {
+      if (username === "ADMIN_ZNR") return true;
+      return !!(db.users[username] && getModeratorAccess(username)[role]);
+    }
+
+    function hasAnyModeratorAccess(username) {
+      if (username === "ADMIN_ZNR") return true;
+      const access = getModeratorAccess(username);
+      return Object.keys(MODERATOR_ROLES).some(role => access[role]);
+    }
+
+    function canAdminRole(role) {
+      return currentUser === "ADMIN_ZNR" || hasModeratorAccess(role);
+    }
+
+    let selectedAccessUser = null;
+
+    function openAccessRoleModal(username) {
+      if (currentUser !== "ADMIN_ZNR") return alert("Only Admin can share or edit access!");
+      if (!db.users[username]) return;
+
+      selectedAccessUser = username;
+      const access = getModeratorAccess(username);
+      document.getElementById('access-role-user').innerHTML = `<strong>${username}</strong> — select required roles`;
+
+      document.querySelectorAll('.access-role-check').forEach(chk => {
+        chk.checked = !!access[chk.value];
+      });
+
+      document.getElementById('accessRoleModal').style.display = 'flex';
+    }
+
+    function closeAccessRoleModal() {
+      document.getElementById('accessRoleModal').style.display = 'none';
+      selectedAccessUser = null;
+    }
+
+    function saveModeratorAccess() {
+      if (currentUser !== "ADMIN_ZNR" || !selectedAccessUser) return;
+      const access = {};
+      document.querySelectorAll('.access-role-check').forEach(chk => {
+        if (chk.checked) access[chk.value] = true;
+      });
+
+      if (Object.keys(access).length === 0) {
+        delete db.users[selectedAccessUser].moderatorAccess;
+      } else {
+        db.users[selectedAccessUser].moderatorAccess = access;
+      }
+
+      saveDB();
+      closeAccessRoleModal();
+      renderAdminPanel();
+      alert(Object.keys(access).length ? `Access updated for ${selectedAccessUser}!` : `All access removed from ${selectedAccessUser}!`);
+    }
+
+    function removeModeratorAccess(username) {
+      if (currentUser !== "ADMIN_ZNR") return alert("Only Admin can remove access!");
+      if (!db.users[username]) return;
+
+      if (!confirm(`Remove ALL moderator access from ${username}?`)) return;
+      delete db.users[username].moderatorAccess;
+      saveDB();
+      renderAdminPanel();
+      alert(`All access removed from ${username}.`);
+    }
+
+    function renderShareAccess() {
+      const active = document.getElementById('active-moderators-list');
+      const other = document.getElementById('other-users-access-list');
+      if (!active || !other) return;
+
+      const users = Object.keys(db.users || {});
+      const activeUsers = users.filter(u => hasAnyModeratorAccess(u));
+      const otherUsers = users.filter(u => !hasAnyModeratorAccess(u));
+
+      active.innerHTML = activeUsers.length ? activeUsers.map(u => {
+        const roles = Object.keys(getModeratorAccess(u)).filter(r => getModeratorAccess(u)[r]).map(r => MODERATOR_ROLES[r]).join(', ');
+        return `<div class="moderator-card access-user-selectable" onclick="openAccessRoleModal('${u.replace(/'/g, "\\'")}')">
+          <div><strong>${u}</strong> ${getTagHTML(db.users[u].tag)}</div>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:5px 0;">${roles || 'No roles'}</p>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm" onclick="openAccessRoleModal('${u.replace(/'/g, "\\'")}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="removeModeratorAccess('${u.replace(/'/g, "\\'")}')">❌ Remove</button>
+          </div>
+        </div>`;
+      }).join('') : '<p style="color:#94a3b8;font-size:0.85rem;">No active moderators.</p>';
+
+      other.innerHTML = otherUsers.length ? otherUsers.map(u => `
+        <div class="moderator-card access-user-selectable" onclick="openAccessRoleModal('${u.replace(/'/g, "\\'")}')">
+          <div><strong>${u}</strong> <span style="color:#94a3b8;font-size:0.78rem;">(${db.users[u].ign || 'No IGN'})</span></div>
+          <button class="btn btn-sm" style="margin-top:8px;" onclick="openAccessRoleModal('${u.replace(/'/g, "\\'")}')">➕ Give Access</button>
+        </div>
+      `).join('') : '<p style="color:#94a3b8;font-size:0.85rem;">No other users.</p>';
+    }
+
+    function applyModeratorUI() {
+      const isAdmin = currentUser === "ADMIN_ZNR";
+      const roles = getModeratorAccess(currentUser);
+
+      document.querySelectorAll('[data-admin-only="true"]').forEach(el => {
+        el.style.display = isAdmin ? '' : 'none';
+      });
+
+      const roleMap = {
+        'admin-tab-tags': 'tags',
+        'admin-tab-matches': 'roomOrganize',
+        'admin-tab-payments': null,
+        'admin-tab-extra': 'sendMail'
+      };
+
+      document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-admin-only') === 'true') return;
+        const match = btn.getAttribute('onclick') || '';
+        let tab = '';
+        const m = match.match(/switchAdminTab\('([^']+)'/);
+        if (m) tab = m[1];
+
+        let allowed = isAdmin;
+        if (!allowed) {
+          if (tab === 'admin-tab-players') allowed = !!roles.coins;
+          else if (tab === 'admin-tab-creators') allowed = false;
+          else if (tab === 'admin-tab-payments') allowed = !!roles.paymentApproval || !!roles.withdrawApproval;
+          else if (tab === 'admin-tab-extra') allowed = !!roles.sendMail || !!roles.coupons;
+          else if (tab === 'admin-tab-tags') allowed = !!roles.tags;
+          else if (tab === 'admin-tab-matches') allowed = !!roles.roomOrganize;
+        }
+        btn.style.display = allowed ? '' : 'none';
+      });
+
+      if (!isAdmin) {
+        const createCard = document.getElementById('admin-t-name')?.closest('.card');
+        if (createCard) createCard.style.display = 'none';
+        const couponCard = document.getElementById('admin-c-code')?.closest('.card');
+        if (couponCard) couponCard.style.display = roles.coupons ? '' : 'none';
+        const mailCard = document.getElementById('admin-target-user')?.closest('.card');
+        if (mailCard) mailCard.style.display = roles.sendMail ? '' : 'none';
+      }
+
+      if (!isAdmin) {
+        const visibleBtn = Array.from(document.querySelectorAll('.admin-tab-btn')).find(btn => btn.style.display !== 'none');
+        if (visibleBtn) visibleBtn.click();
+      }
+    }
+
+    // RENDER ADMIN DASHBOARD
+    function renderAdminPanel() {
+      // Matches Control
+      const matchControl = document.getElementById('admin-matches-control');
+      if (!db.tournaments || db.tournaments.length === 0) {
+        matchControl.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem;">Koi Active Tournament Nahi Hai.</p>';
+      } else {
+        matchControl.innerHTML = db.tournaments.map(t => {
+          const joinedList = (t.joinedPlayers || []).map((p, idx) => `${p} (Slot #${idx+1})`).join(', ') || 'None';
+          return `
+            <div style="background:#0f172a; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #334155; position:relative;">
+              <button class="delete-match-btn" onclick="adminDeleteMatch(${t.id})">🗑️ Delete</button>
+              <p><strong>${t.title}</strong> | Status: <strong style="color:var(--accent)">${t.status}</strong></p>
+              <p style="font-size:0.8rem; color:var(--accent); margin:2px 0;">Players Limit: ${(t.joinedPlayers || []).length} / ${t.limit || 48}</p>
+              <p style="font-size:0.75rem; color:#94a3b8; margin:2px 0;">Joined: ${joinedList}</p>
+              <div style="display:flex; gap:5px; margin-top:8px;">
+                <button class="btn btn-sm" style="background:#64748b; color:#fff;" onclick="updateMatchStatus(${t.id}, 'Incomplete')">Incomplete</button>
+                <button class="btn btn-sm" style="background:var(--accent); color:#000;" onclick="updateMatchStatus(${t.id}, 'Going On')">Going On</button>
+                <button class="btn btn-sm btn-success" onclick="updateMatchStatus(${t.id}, 'Complete')">Complete</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Deposit Payments
+      const payList = document.getElementById('admin-pending-payments');
+      if (db.pendingPayments && !Array.isArray(db.pendingPayments)) db.pendingPayments = Object.values(db.pendingPayments);
+      if (!db.pendingPayments || db.pendingPayments.length === 0) {
+        payList.innerHTML = "<p style='color:#94a3b8; font-size:0.85rem;'>No pending deposit requests.</p>";
+      } else {
+        payList.innerHTML = db.pendingPayments.map(p => `
+          <div style="background:#0f172a; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #334155;">
+            <p><strong>User:</strong> ${p.user}</p>
+            <p><strong>UPI:</strong> ${p.upi || 'N/A'}</p>
+            <p><strong>Coins:</strong> ${p.coins} (₹${p.amount})</p>
+            <button class="btn" onclick="openPaymentRequest(${p.id})">👁️ View Payment</button>
+            <button class="btn btn-success" onclick="approvePayment(${p.id})">Approve & Send Coins</button>
+          </div>
+        `).join('');
+      }
+
+      // Withdrawal Requests
+      const withdrawList = document.getElementById('admin-pending-withdrawals');
+      if (!db.pendingWithdrawals || db.pendingWithdrawals.length === 0) {
+        withdrawList.innerHTML = "<p style='color:#94a3b8; font-size:0.85rem;'>No pending withdrawal requests.</p>";
+      } else {
+        withdrawList.innerHTML = db.pendingWithdrawals.map(w => `
+          <div style="background:#0f172a; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #334155;">
+            <p><strong>User:</strong> ${w.user}</p>
+            <p><strong>UPI ID:</strong> <span style="color:var(--accent); font-weight:bold;">${w.upi}</span></p>
+            <p><strong>Withdraw Coins:</strong> 🪙 ${w.coins} Coins</p>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn btn-success btn-sm" onclick="approveWithdrawal(${w.id})">✅ Approve (Money Sent)</button>
+              <button class="btn btn-danger btn-sm" onclick="rejectWithdrawal(${w.id})">❌ Reject & Refund</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Creators
+      const creatorContainer = document.getElementById('admin-creators-list');
+      if (!db.creators || db.creators.length === 0) {
+        creatorContainer.innerHTML = "<p style='color:#94a3b8; font-size:0.85rem;'>Koi creator added nahi hai.</p>";
+      } else {
+        creatorContainer.innerHTML = db.creators.map(c => `
+          <div class="creator-item">
+            <span>• ${c}</span>
+            <button class="btn btn-danger btn-sm" onclick="adminRemoveCreator('${c}')">❌ Remove</button>
+          </div>
+        `).join('');
+      }
+
+      // Match Dropdown
+      const matchSelect = document.getElementById('admin-select-match');
+      matchSelect.innerHTML = (db.tournaments || []).map(t => `
+        <option value="${t.id}">${t.title} (${(t.joinedPlayers || []).length}/${t.limit || 48} Joined)</option>
+      `).join('');
+
+      // Players Table & Tags
+      const playersTable = document.getElementById('admin-players-table-body');
+      const tagUserSelect = document.getElementById('admin-tag-user-select');
+      const tagsOverviewList = document.getElementById('admin-tags-overview-list');
+      
+      playersTable.innerHTML = '';
+      tagUserSelect.innerHTML = '';
+      tagsOverviewList.innerHTML = '';
+
+      const usersList = Object.keys(db.users || {});
+
+      if (usersList.length === 0) {
+        playersTable.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Koi registered player nahi mila.</td></tr>`;
+        tagUserSelect.innerHTML = '<option value="">No Users Registered</option>';
+        tagsOverviewList.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem;">Koi user registered nahi hai.</p>';
+      } else {
+        usersList.forEach(u => {
+          const userObj = db.users[u];
+          const isBanned = userObj.isBanned || false;
+
+          playersTable.innerHTML += `
+            <tr>
+              <td>
+                <strong class="clickable-admin-user" onclick="openAdminUserDetails('${u.replace("'", "\\'")}')">${u}</strong>
+                ${getTagHTML(userObj.tag)}
+              </td>
+              <td>${userObj.ign || 'N/A'}</td>
+              <td>${userObj.uid || 'N/A'}</td>
+              <td>🪙 ${userObj.coins || 0}</td>
+              <td>
+                <span style="color: ${isBanned ? 'var(--danger)' : 'var(--success)'}; font-weight: bold;">
+                  ${isBanned ? '🚫 Banned' : '✅ Active'}
+                </span>
+              </td>
+              <td>
+                <div class="action-btn-group">
+                  ${(currentUser === 'ADMIN_ZNR' || hasModeratorAccess('coins')) ? `
+                    <button class="btn btn-sm btn-success" onclick="adminAddCoins('${u}')">➕ Coins</button>
+                    <button class="btn btn-sm" style="background:#eab308; color:#000;" onclick="adminMinusCoins('${u}')">➖ Coins</button>
+                  ` : ''}
+                  ${currentUser === 'ADMIN_ZNR' ? `
+                    <button class="btn btn-sm ${isBanned ? 'btn-success' : 'btn-danger'}" onclick="adminToggleBan('${u}')">
+                      ${isBanned ? '✅ Unban' : '🚫 Ban'}
+                    </button>
+                    <button class="btn btn-sm btn-danger" style="background:#b91c1c;" onclick="adminDeleteUser('${u}')">🗑️ Delete</button>
+                  ` : ''}
+                </div>
+              </td>
+            </tr>
+          `;
+
+          tagUserSelect.innerHTML += `<option value="${u}">${u} (${userObj.ign || u})</option>`;
+          tagsOverviewList.innerHTML += `
+            <div class="creator-item">
+              <div>
+                <strong>${u}</strong> ${getTagHTML(userObj.tag)}
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="adminQuickEditTag('${u}')">✏️ Edit Tag</button>
+            </div>
+          `;
+        });
+      }
+
+      // Coupons Overview
+      const couponList = document.getElementById('admin-coupons-list');
+      const couponEntries = Object.entries(db.coupons || {});
+
+      if (!couponList) {
+        // Element is not present in an older/custom UI.
+      } else if (couponEntries.length === 0) {
+        couponList.innerHTML = "<p style='color:#94a3b8; font-size:0.85rem;'>Koi coupon active nahi hai.</p>";
+      } else {
+        couponList.innerHTML = couponEntries.map(([code, coupon]) => {
+          const claimedBy = Array.isArray(coupon?.claimedBy)
+            ? coupon.claimedBy
+            : (coupon?.claimedBy ? Object.values(coupon.claimedBy) : []);
+          const used = claimedBy.length;
+          const limit = Number(coupon?.limit) || 0;
+          const reward = Number(coupon?.coins) || 0;
+          const remaining = Math.max(0, limit - used);
+          const isActive = remaining > 0;
+
+          return `
+            <div style="background:#0f172a; padding:12px; margin-bottom:8px; border-radius:6px; border:1px solid #334155;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <strong style="font-size:1rem; color:var(--accent);">${code}</strong>
+                <span style="font-size:0.78rem; font-weight:bold; color:${isActive ? 'var(--success)' : 'var(--danger)'};">
+                  ${isActive ? '🟢 Active' : '🔴 Limit Reached'}
+                </span>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px;">
+                <div style="background:#1e293b; padding:8px; border-radius:5px;">
+                  <div style="font-size:0.7rem; color:#94a3b8;">Used</div>
+                  <strong>${used}</strong>
+                </div>
+                <div style="background:#1e293b; padding:8px; border-radius:5px;">
+                  <div style="font-size:0.7rem; color:#94a3b8;">Total Limit</div>
+                  <strong>${limit}</strong>
+                </div>
+                <div style="background:#1e293b; padding:8px; border-radius:5px;">
+                  <div style="font-size:0.7rem; color:#94a3b8;">Value</div>
+                  <strong>🪙 ${reward}</strong>
+                </div>
+              </div>
+              <p style="font-size:0.78rem; color:#94a3b8; margin:8px 0 0;">
+                Remaining: <strong style="color:#fff;">${remaining}</strong> users
+              </p>
+              <button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="adminDeleteCoupon('${code.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">
+                🗑️ Delete Coupon
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      renderShareAccess();
+      applyModeratorUI();
+    }
+
+    // ADMIN COUPON DELETE FUNCTIONALITY
+    async function adminDeleteCoupon(code) {
+      if (!canAdminRole("coupons")) return alert("Coupons access required!");
+      if (!db.coupons || !db.coupons[code]) return alert("Coupon not found!");
+
+      const coupon = db.coupons[code];
+      const claimedBy = Array.isArray(coupon.claimedBy)
+        ? coupon.claimedBy
+        : (coupon.claimedBy ? Object.values(coupon.claimedBy) : []);
+
+      if (!confirm(`Delete coupon ${code}?\\nUsed: ${claimedBy.length}\\nLimit: ${Number(coupon.limit) || 0}\\nValue: ${Number(coupon.coins) || 0} Coins`)) return;
+
+      try {
+        await dbRef.update({ [`coupons/${code}`]: null });
+        delete db.coupons[code];
+        renderAdminPanel();
+        alert(`Coupon ${code} deleted successfully!`);
+      } catch (error) {
+        console.error("Delete coupon error:", error);
+        alert("❌ Coupon delete failed. Firebase Database write permission/rules check karein.");
+      }
+    }
+
+    // ADMIN MATCH DELETE FUNCTIONALITY
+    function adminDeleteMatch(matchId) {
+      if (!canAdminRole("roomOrganize")) return alert("Room Organize access required!");
+      if (!confirm("Confirm Match DELETE? Match admin & user dono screens se remove ho jayega.")) return;
+      db.tournaments = (db.tournaments || []).filter(t => t.id !== matchId);
+      saveDB();
+      renderAdminPanel();
+      alert("Match Deleted Successfully!");
+    }
+
+    // ADMIN WITHDRAWAL ACTIONS — remove the exact Firebase child after processing.
+    async function approveWithdrawal(reqId) {
+      if (!canAdminRole("withdrawApproval")) return alert("Withdraw Approval access required!");
+      const req = (db.pendingWithdrawals || []).find(w => String(w.id) === String(reqId));
+      if (!req) return alert("Withdrawal request not found or already processed.");
+      if (!confirm("Confirm that the withdrawal money has been sent?")) return;
+      try {
+        const key = req._firebaseKey != null ? req._firebaseKey : String(req.id);
+        const updates = {};
+        updates[`pendingWithdrawals/${key}`] = null;
+        const user = db.users[req.user];
+        if (user) {
+          const mailKey = dbRef.child('users').child(req.user).child('mailbox').push().key;
+          updates[`users/${req.user}/mailbox/${mailKey}`] = {
+            id: Date.now(), title: "✅ Withdrawal Approved!",
+            message: `Aapka ${req.coins} coins ka withdrawal process ho gaya hai aur paise UPI ID (${req.upi}) par bhej diye gaye hain.`,
+            coins: 0, claimed: false
+          };
+        }
+        await dbRef.update(updates);
+        db.pendingWithdrawals = db.pendingWithdrawals.filter(w => String(w.id) !== String(reqId));
+        if (user) user.mailbox = [...(Array.isArray(user.mailbox) ? user.mailbox : Object.values(user.mailbox || {})), updates[`users/${req.user}/mailbox/${Object.keys(updates).find(k => k.startsWith(`users/${req.user}/mailbox/`))?.split('/').pop()}`]];
+        renderAdminPanel();
+        alert("Withdrawal approved and removed from pending requests.");
+      } catch (error) {
+        console.error('APPROVE WITHDRAWAL ERROR:', error);
+        alert("Withdrawal approval failed. Check connection and Firebase Database Rules.");
+      }
+    }
+
+    async function rejectWithdrawal(reqId) {
+      if (!canAdminRole("withdrawApproval")) return alert("Withdraw Approval access required!");
+      const req = (db.pendingWithdrawals || []).find(w => String(w.id) === String(reqId));
+      if (!req) return alert("Withdrawal request not found or already processed.");
+      if (!confirm("Reject this withdrawal and refund the coins?")) return;
+      try {
+        const key = req._firebaseKey != null ? req._firebaseKey : String(req.id);
+        const user = db.users[req.user];
+        const updates = { [`pendingWithdrawals/${key}`]: null };
+        let newCoins;
+        let historyItem;
+        let mailItem;
+        if (user) {
+          newCoins = Number(user.coins || 0) + Number(req.coins || 0);
+          historyItem = `${new Date().toLocaleTimeString()} - Withdrawal Rejected & Refunded (+${req.coins} Coins)`;
+          mailItem = { id: Date.now(), title: "❌ Withdrawal Rejected", message: `Aapka withdrawal request reject kar diya gaya hai. ${req.coins} coins aapke account me refund kar diye gaye hain.`, coins: 0, claimed: false };
+          const historyKey = dbRef.child('users').child(req.user).child('history').push().key;
+          const mailKey = dbRef.child('users').child(req.user).child('mailbox').push().key;
+          updates[`users/${req.user}/coins`] = newCoins;
+          updates[`users/${req.user}/history/${historyKey}`] = historyItem;
+          updates[`users/${req.user}/mailbox/${mailKey}`] = mailItem;
+        }
+        await dbRef.update(updates);
+        db.pendingWithdrawals = db.pendingWithdrawals.filter(w => String(w.id) !== String(reqId));
+        if (user) {
+          user.coins = newCoins;
+          user.history = [...(Array.isArray(user.history) ? user.history : Object.values(user.history || {})), historyItem];
+          user.mailbox = [...(Array.isArray(user.mailbox) ? user.mailbox : Object.values(user.mailbox || {})), mailItem];
+        }
+        renderAdminPanel();
+        alert("Withdrawal rejected; coins refunded and request removed.");
+      } catch (error) {
+        console.error('REJECT WITHDRAWAL ERROR:', error);
+        alert("Rejection/refund failed. Check connection and Firebase Database Rules.");
+      }
+    }
+
+    // WINNER MODAL & MATCH STATUS CONTROLS
+    function updateMatchStatus(matchId, status) {
+      if (!canAdminRole("roomOrganize")) return alert("Room Organize access required!");
+      if (status === 'Complete') {
+        const match = db.tournaments.find(t => t.id === matchId);
+        if (!match || !match.joinedPlayers || match.joinedPlayers.length === 0) {
+          if (confirm("Match me koi joined players nahi hain! Phir bhi complete karke remove karna hai?")) {
+            db.tournaments = db.tournaments.filter(t => t.id !== matchId);
+            saveDB();
+            renderAdminPanel();
+            alert("Match completed & auto-removed from platform!");
+          }
+          return;
+        }
+
+        selectedMatchIdForWinner = matchId;
+        const winnerSelect = document.getElementById('winnerSelect');
+        winnerSelect.innerHTML = '<option value="">-- Select Winner Username --</option>';
+
+        match.joinedPlayers.forEach(playerUsername => {
+          const opt = document.createElement('option');
+          opt.value = playerUsername;
+          opt.textContent = playerUsername;
+          winnerSelect.appendChild(opt);
+        });
+
+        document.getElementById('winnerModal').style.display = 'flex';
+      } else {
+        const match = db.tournaments.find(t => t.id === matchId);
+        if (match) {
+          match.status = status;
+          saveDB();
+          renderAdminPanel();
+        }
+      }
+    }
+
+    function closeWinnerModal() {
+      document.getElementById('winnerModal').style.display = 'none';
+      selectedMatchIdForWinner = null;
+    }
+
+    function confirmWinnerSelection() {
+      const winnerUsername = document.getElementById('winnerSelect').value;
+      if (!winnerUsername) return alert("Kripya ek winner username select karein!");
+
+      const match = db.tournaments.find(t => t.id === selectedMatchIdForWinner);
+      if (match) {
+        const winMessage = "🏆 Congratulations on your BOOYAH! You have won the tournament! Your prize pool money will be credited to your account soon. Keep grinding! 🔥";
+
+        if (db.users[winnerUsername]) {
+          if (!db.users[winnerUsername].mailbox) db.users[winnerUsername].mailbox = [];
+          
+          db.users[winnerUsername].mailbox.unshift({
+            id: Date.now(),
+            title: `🏆 Tournament Winner Announcement (${match.title})`,
+            message: winMessage,
+            coins: 0,
+            claimed: false
+          });
+        }
+
+        // AUTO-REMOVE MATCH ON COMPLETION FROM DB
+        db.tournaments = db.tournaments.filter(t => t.id !== selectedMatchIdForWinner);
+
+        saveDB();
+        closeWinnerModal();
+        renderAdminPanel();
+        alert(`Match complete ho gaya, ${winnerUsername} ko reward message bhej diya gaya aur match system se AUTO-REMOVE ho gaya!`);
+      }
+    }
+
+    // TAGS & ADMIN CONTROLS
+    function adminSetPlayerTag() {
+      if (!canAdminRole("tags")) return alert("Tags access required!");
+      const user = document.getElementById('admin-tag-user-select').value;
+      const tagText = document.getElementById('admin-tag-text').value.trim();
+      const tagColor = document.getElementById('admin-tag-color').value;
+
+      if (!user) return alert("Select user!");
+      if (!tagText) return alert("Enter tag text!");
+
+      if (db.users[user]) {
+        db.users[user].tag = { text: tagText, color: tagColor };
+        saveDB();
+        alert(`Tag [${tagText}] applied to ${user}!`);
+        document.getElementById('admin-tag-text').value = '';
+        renderAdminPanel();
+      }
+    }
+
+    function adminRemovePlayerTag() {
+      if (!canAdminRole("tags")) return alert("Tags access required!");
+      const user = document.getElementById('admin-tag-user-select').value;
+      if (!user) return alert("Select user!");
+
+      if (db.users[user]) {
+        db.users[user].tag = null;
+        saveDB();
+        alert(`Tag removed from ${user}!`);
+        renderAdminPanel();
+      }
+    }
+
+    function adminQuickEditTag(username) {
+      document.getElementById('admin-tag-user-select').value = username;
+      if (db.users[username] && db.users[username].tag) {
+        document.getElementById('admin-tag-text').value = db.users[username].tag.text;
+        document.getElementById('admin-tag-color').value = db.users[username].tag.color;
+      } else {
+        document.getElementById('admin-tag-text').value = '';
+      }
+      switchAdminTab('admin-tab-tags');
+    }
+
+    function adminAddCoins(username) {
+      if (!canAdminRole("coins")) return alert("Coins Management access required!");
+      const amount = parseInt(prompt(`[${username}] kitne Coins ADD karne hain?`));
+      if (!amount || amount <= 0) return;
+
+      if (db.users[username]) {
+        db.users[username].coins = (db.users[username].coins || 0) + amount;
+        if (!db.users[username].history) db.users[username].history = [];
+        db.users[username].history.push(`${new Date().toLocaleTimeString()} - Admin Added +${amount} Coins`);
+        saveDB();
+        alert(`Successfully added ${amount} Coins to ${username}!`);
+        renderAdminPanel();
+      }
+    }
+
+    function adminMinusCoins(username) {
+      if (!canAdminRole("coins")) return alert("Coins Management access required!");
+      const amount = parseInt(prompt(`[${username}] se kitne Coins MINUS karne hain?`));
+      if (!amount || amount <= 0) return;
+
+      if (db.users[username]) {
+        db.users[username].coins = Math.max(0, (db.users[username].coins || 0) - amount);
+        if (!db.users[username].history) db.users[username].history = [];
+        db.users[username].history.push(`${new Date().toLocaleTimeString()} - Admin Deducted -${amount} Coins`);
+        saveDB();
+        alert(`Successfully deducted ${amount} Coins from ${username}!`);
+        renderAdminPanel();
+      }
+    }
+
+    function adminToggleBan(username) {
+      if (db.users[username]) {
+        db.users[username].isBanned = !db.users[username].isBanned;
+        saveDB();
+        alert(`User ${username} is now ${db.users[username].isBanned ? 'BANNED 🚫' : 'UNBANNED ✅'}!`);
+        renderAdminPanel();
+      }
+    }
+
+    function adminDeleteUser(username) {
+      if (!confirm(`Confirm DELETE user [${username}]?`)) return;
+
+      if (db.users[username]) {
+        delete db.users[username];
+        db.creators = (db.creators || []).filter(c => c !== username);
+        saveDB();
+        alert(`User [${username}] deleted successfully!`);
+        renderAdminPanel();
+        populateLoginCreatorsDropdown();
+      }
+    }
+
+    function openPaymentRequest(reqId) {
+      if (!canAdminRole('paymentApproval')) return alert("Payment Approval access required!");
+      const req = (db.pendingPayments || []).find(p => String(p.id) === String(reqId));
+      if (!req) return;
+
+      document.getElementById('payment-request-details').innerHTML = `
+        <div class="card">
+          <p><strong>User:</strong> ${req.user}</p>
+          <p><strong>UPI ID:</strong> ${req.upi || 'N/A'}</p>
+          <p><strong>Package:</strong> 🪙 ${req.coins} Coins — ₹${req.amount}</p>
+          <p><strong>Date:</strong> ${req.date || 'N/A'}</p>
+          ${req.screenshotUrl ? `<img class="payment-thumb" src="${req.screenshotUrl}" alt="Payment Screenshot">` : '<p>No screenshot available.</p>'}
+        </div>
+        <button class="btn btn-success" onclick="approvePayment(${req.id}); closePaymentRequest();">✅ Approve & Send Coins</button>
+      `;
+      document.getElementById('paymentRequestModal').style.display = 'flex';
+    }
+
+    function closePaymentRequest() {
+      document.getElementById('paymentRequestModal').style.display = 'none';
+    }
+
+    async function approvePayment(reqId) {
+      if (!canAdminRole("paymentApproval")) return alert("Payment Approval access required!");
+      const req = (db.pendingPayments || []).find(p => String(p.id) === String(reqId));
+      if (!req) return alert("Payment request not found or already processed.");
+      const user = db.users[req.user];
+      if (!user) return alert("User account not found!");
+      if (!confirm(`Approve payment and add ${req.coins} coins to ${req.user}?`)) return;
+      try {
+        const key = req._firebaseKey != null ? req._firebaseKey : String(req.id);
+        const historyItem = `${new Date().toLocaleTimeString()} - Deposit Approved (+${req.coins} Coins)`;
+        const approvalMail = { id: Date.now(), title: "✅ Payment Approved", message: `Your payment has been approved by Admin. ${req.coins} Coins have been added to your wallet.`, coins: Number(req.coins || 0), claimed: false };
+        const historyKey = dbRef.child('users').child(req.user).child('history').push().key;
+        const mailKey = dbRef.child('users').child(req.user).child('mailbox').push().key;
+        const newCoins = Number(user.coins || 0) + Number(req.coins || 0);
+        const updates = {};
+        updates[`users/${req.user}/coins`] = newCoins;
+        updates[`users/${req.user}/history/${historyKey}`] = historyItem;
+        updates[`users/${req.user}/mailbox/${mailKey}`] = approvalMail;
+        updates[`pendingPayments/${key}`] = null;
+        await dbRef.update(updates);
+        user.coins = newCoins;
+        user.history = [...(Array.isArray(user.history) ? user.history : Object.values(user.history || {})), historyItem];
+        user.mailbox = [...(Array.isArray(user.mailbox) ? user.mailbox : Object.values(user.mailbox || {})), approvalMail];
+        db.pendingPayments = db.pendingPayments.filter(p => String(p.id) !== String(reqId));
+        closePaymentRequest();
+        renderAdminPanel();
+        alert(`✅ Payment Approved! ${req.coins} Coins added to ${req.user}.`);
+      } catch (error) {
+        console.error('APPROVE PAYMENT ERROR:', error);
+        alert('❌ Approval failed. Check Firebase Realtime Database Rules and connection.');
+      }
+    }
+
+    function adminSendMailbox() {
+      if (!canAdminRole("sendMail")) return alert("Send Mail access required!");
+      const targetUser = document.getElementById('admin-target-user').value.trim();
+      const title = document.getElementById('admin-mail-title').value.trim();
+      const coins = parseInt(document.getElementById('admin-mail-coins').value) || 0;
+
+      if (targetUser && title && db.users[targetUser]) {
+        if (!db.users[targetUser].mailbox) db.users[targetUser].mailbox = [];
+        db.users[targetUser].mailbox.push({
+          id: Date.now(),
+          title: title,
+          coins: coins,
+          claimed: false
+        });
+        saveDB();
+        alert(`Mail sent to ${targetUser}'s Mailbox!`);
+        document.getElementById('admin-target-user').value = '';
+        document.getElementById('admin-mail-title').value = '';
+        document.getElementById('admin-mail-coins').value = '';
+      } else {
+        alert("User nahi mila!");
+      }
+    }
+
+    function adminAddCreator() {
+      const name = document.getElementById('admin-new-creator').value.trim();
+      if (!db.creators) db.creators = [];
+      if (name && !db.creators.includes(name)) {
+        db.creators.push(name);
+        if (db.users[name]) db.users[name].isPartner = true;
+        saveDB();
+        alert(`Creator ${name} added!`);
+        document.getElementById('admin-new-creator').value = '';
+        renderAdminPanel();
+        populateLoginCreatorsDropdown();
+      }
+    }
+
+    function adminRemoveCreator(creatorName) {
+      db.creators = db.creators.filter(c => c !== creatorName);
+      if (db.users[creatorName]) db.users[creatorName].isPartner = false;
+      saveDB();
+      alert(`Creator ${creatorName} removed!`);
+      renderAdminPanel();
+      populateLoginCreatorsDropdown();
+    }
+
+    function adminSendRoomInfo() {
+      if (!canAdminRole("roomOrganize")) return alert("Room Organize access required!");
+      const matchId = parseInt(document.getElementById('admin-select-match').value);
+      const roomId = document.getElementById('admin-room-id').value.trim();
+      const roomPass = document.getElementById('admin-room-pass').value.trim();
+
+      const match = db.tournaments.find(t => t.id === matchId);
+
+      if (match && roomId && roomPass) {
+        match.roomId = roomId;
+        match.roomPass = roomPass;
+        saveDB();
+        alert("Room ID & Password sent to Joined Players!");
+        document.getElementById('admin-room-id').value = '';
+        document.getElementById('admin-room-pass').value = '';
+      }
+    }
+
+    // CREATOR ORGANIZE CUSTOM - SAME MATCH FORMAT AS ADMIN
+    function creatorCreateMatch() {
+      if (!currentUser || !db.users[currentUser] || !db.users[currentUser].isPartner) {
+        return alert("Creator access required!");
+      }
+
+      const title = document.getElementById('creator-t-name').value.trim();
+      const fee = parseInt(document.getElementById('creator-t-fee').value);
+      const prize = parseInt(document.getElementById('creator-t-prize').value);
+      const limit = parseInt(document.getElementById('creator-t-limit').value) || 48;
+
+      if (title && fee && prize) {
+        if (!db.tournaments) db.tournaments = [];
+
+        db.tournaments.push({
+          id: Date.now(),
+          title,
+          fee,
+          prize,
+          limit,
+          joinedPlayers: [],
+          roomId: "",
+          roomPass: "",
+          status: "Incomplete",
+          organizedBy: currentUser
+        });
+
+        saveDB();
+        alert(`Custom Match Published with ${limit} Players Limit!`);
+
+        document.getElementById('creator-t-name').value = '';
+        document.getElementById('creator-t-fee').value = '';
+        document.getElementById('creator-t-prize').value = '';
+        document.getElementById('creator-t-limit').value = '';
+
+        updateUI();
+      } else {
+        alert("Fill all match fields!");
+      }
+    }
+
+    // ADMIN CLICKABLE USER DETAILS
+    let selectedAdminUser = null;
+
+    function openAdminUserDetails(username) {
+      if (!db.users[username]) return;
+
+      selectedAdminUser = username;
+      const user = db.users[username];
+      const history = user.history || [];
+
+      document.getElementById('admin-user-details').innerHTML = `
+        <div class="card" style="margin:10px 0 0;">
+          <p><strong>Username:</strong> ${username}</p>
+          <p><strong>Password:</strong> ${user.password || 'N/A'}</p>
+          <p><strong>FF IGN:</strong> ${user.ign || 'N/A'}</p>
+          <p><strong>FF UID:</strong> ${user.uid || 'N/A'}</p>
+          <p><strong>Coins:</strong> 🪙 <span style="color:var(--accent); font-weight:bold;">${user.coins || 0}</span></p>
+          <p><strong>Status:</strong> ${user.isBanned ? '🚫 Banned' : '✅ Active'}</p>
+          <p><strong>Creator / Partner:</strong> ${user.isPartner ? '✅ Yes' : '❌ No'}</p>
+        </div>
+
+        <div class="card" style="margin:10px 0 0;">
+          <h4>📜 History</h4>
+          <div style="margin-top:8px;">
+            ${history.length
+              ? history.map(h => `<p style="font-size:0.8rem; border-bottom:1px solid #334155; padding:5px 0;">${h}</p>`).join('')
+              : `<p style="font-size:0.8rem; color:#94a3b8;">No history</p>`
+            }
+          </div>
+        </div>
+      `;
+
+      document.getElementById('adminUserModal').style.display = 'flex';
+    }
+
+    function closeAdminUserModal() {
+      document.getElementById('adminUserModal').style.display = 'none';
+      selectedAdminUser = null;
+    }
+
+    function adminAddCoinsFromDetails() {
+      if (!selectedAdminUser) return;
+      const username = selectedAdminUser;
+      adminAddCoins(username);
+      if (db.users[username]) openAdminUserDetails(username);
+    }
+
+    function adminMinusCoinsFromDetails() {
+      if (!selectedAdminUser) return;
+      const username = selectedAdminUser;
+      adminMinusCoins(username);
+      if (db.users[username]) openAdminUserDetails(username);
+    }
+
+    function adminCreateMatch() {
+      const title = document.getElementById('admin-t-name').value.trim();
+      const fee = parseInt(document.getElementById('admin-t-fee').value);
+      const prize = parseInt(document.getElementById('admin-t-prize').value);
+      const limit = parseInt(document.getElementById('admin-t-limit').value) || 48;
+
+      if (title && fee && prize) {
+        db.tournaments.push({
+          id: Date.now(),
+          title,
+          fee,
+          prize,
+          limit,
+          joinedPlayers: [],
+          roomId: "",
+          roomPass: "",
+          status: "Incomplete"
+        });
+        saveDB();
+        alert(`Match Published with ${limit} Players Limit!`);
+        document.getElementById('admin-t-name').value = '';
+        document.getElementById('admin-t-fee').value = '';
+        document.getElementById('admin-t-prize').value = '';
+        document.getElementById('admin-t-limit').value = '';
+        renderAdminPanel();
+      }
+    }
+
+    function adminCreateCoupon() {
+      if (!canAdminRole("coupons")) return alert("Coupons access required!");
+      const code = document.getElementById('admin-c-code').value.trim().toUpperCase();
+      const reward = parseInt(document.getElementById('admin-c-coins').value);
+      const limit = parseInt(document.getElementById('admin-c-limit').value);
+
+      if (code && reward && limit) {
+        db.coupons[code] = {
+          coins: reward,
+          limit: limit,
+          claimedBy: []
+        };
+        saveDB();
+        alert(`Coupon ${code} published (${reward} Coins, Limit: ${limit} Players)!`);
+        document.getElementById('admin-c-code').value = '';
+        document.getElementById('admin-c-coins').value = '';
+        document.getElementById('admin-c-limit').value = '';
+        renderAdminPanel();
+      } else {
+        alert("Fill all fields!");
+      }
+    }
+
+    function renderProfile() {
+      let userData = db.users[currentUser] || {};
+      document.getElementById('profile-info').innerHTML = `
+        <p><strong>Username:</strong> ${currentUser} ${getTagHTML(userData.tag)}</p>
+        <p><strong>FF IGN:</strong> ${userData.ign || currentUser}</p>
+        <p><strong>FF UID:</strong> ${userData.uid || 'N/A'}</p>
+        <p><strong>Wallet Balance:</strong> 🪙 ${userData.coins || 0} Coins</p>
+      `;
+      document.getElementById('history-list').innerHTML = userData.history 
+        ? userData.history.map(h => `<p style="font-size:0.8rem; border-bottom:1px solid #334155; padding:4px 0;">${h}</p>`).join('')
+        : "<p style='font-size:0.8rem; color:#94a3b8;'>No history</p>";
+    }
+
+    function logout() {
+      try { auth.signOut(); } catch (e) {}
+
+      currentUser = null;
+      localStorage.removeItem('loggedInUser'); // Clear saved session on manual logout
+
+      document.getElementById('app-header').classList.add('hidden');
+      document.getElementById('app-nav').classList.add('hidden');
+      document.getElementById('screen-admin').classList.add('hidden');
+      
+      const tabs = ['tournaments', 'buy-coins', 'coupons', 'withdraw', 'profile', 'support', 'mailbox'];
+      tabs.forEach(t => document.getElementById(`tab-${t}`).classList.add('hidden'));
+
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
+
+      showLogin();
+    }
+  </script>
+</body>
+</html>
